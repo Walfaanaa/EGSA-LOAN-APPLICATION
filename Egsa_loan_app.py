@@ -104,7 +104,7 @@ if st.session_state["refresh"]:
 st.set_page_config(page_title="Loan Application System", layout="wide")
 conn = init_db()
 
-st.title("Loan Application System (Afoosha Walgargaarsa Odaa)")
+st.title("Loan Application System (For Egsa Members)")
 
 pages = ["Apply for Loan", "Admin Dashboard"]
 page = st.sidebar.selectbox("Go to", pages)
@@ -278,3 +278,4 @@ else:
 st.write(f"💰 **Interest Rate:** {interest_rate}%")
 st.write(f"📆 **Monthly Payment:** {monthly_payment:.2f}")
 st.write(f"💵 **Total Payment:** {total_payment:.2f}")
+
