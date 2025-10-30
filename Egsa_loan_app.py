@@ -1,6 +1,6 @@
 # -------------------------------
-# streamlit_awo_loan_app.py
-# Fully updated for Streamlit >=1.25
+# streamlit_Egsa_loan_app.py
+# Updated: Support Letter + Photo Upload
 # -------------------------------
 import streamlit as st
 import sqlite3
@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 
 # ---------- CONFIG ----------
 DB_PATH = "loan_applications.db"
-ADMIN_PASSWORD = "admin123"  # change before deployment
+ADMIN_PASSWORD = "admin123"  # Change before deployment
 ENABLE_EMAIL_NOTIF = False
 ENABLE_SMS_NOTIF = False
 
@@ -34,7 +34,9 @@ def init_db():
             submitted_date TEXT,
             status TEXT DEFAULT 'Pending',
             admin_comment TEXT,
-            notified INTEGER DEFAULT 0
+            notified INTEGER DEFAULT 0,
+            support_letter BLOB,
+            photo BLOB
         )
     """)
     conn.commit()
@@ -44,13 +46,15 @@ def insert_application(conn, data: dict):
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO applications
-        (name,national_id,staff_status,monthly_salary,loan_amount,interest,total_to_repay,
-         repayment_date,guarantor_name,guarantor_id,guarantor_phone,submitted_date,status,admin_comment,notified)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        (name, national_id, staff_status, monthly_salary, loan_amount, interest, total_to_repay,
+         repayment_date, guarantor_name, guarantor_id, guarantor_phone, submitted_date, status,
+         admin_comment, notified, support_letter, photo)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         data['name'], data['national_id'], data['staff_status'], data['monthly_salary'], data['loan_amount'],
         data['interest'], data['total_to_repay'], data['repayment_date'], data['guarantor_name'],
-        data['guarantor_id'], data['guarantor_phone'], data['submitted_date'], "Pending", "", 0
+        data['guarantor_id'], data['guarantor_phone'], data['submitted_date'], "Pending", "", 0,
+        data['support_letter'], data['photo']
     ))
     conn.commit()
 
@@ -82,14 +86,7 @@ def send_email(to_email, subject, body):
 def send_sms(to_phone, body):
     print(f"[SMS] To:{to_phone}\n{body}")
 
-# ---------- UTILS ----------
-def parse_number_safe(val):
-    try:
-        return float(str(val).replace(",", "").strip())
-    except:
-        return 0.0
-
-# ---------- SAFE RERUN HELPER ----------
+# ---------- SAFE RERUN ----------
 def safe_rerun():
     st.session_state["refresh"] = True
 
@@ -110,7 +107,7 @@ pages = ["Apply for Loan", "Admin Dashboard"]
 page = st.sidebar.selectbox("Go to", pages)
 
 # -------------------------------
-# 1️⃣ Loan Application Form
+#1️⃣ Loan Application Form
 # -------------------------------
 if page == "Apply for Loan":
     st.header("Loan Application Form")
@@ -130,17 +127,40 @@ if page == "Apply for Loan":
         guarantor_phone = st.text_input("Guarantor Phone")
         submitted_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        st.markdown("### Upload Documents")
+        support_letter_file = st.file_uploader(
+            "Upload Organization Support / Salary Letter (PDF or Image)", 
+            type=['pdf', 'png', 'jpg', 'jpeg']
+        )
+        photo_file = st.file_uploader(
+            "Upload Your Photo", 
+            type=['png', 'jpg', 'jpeg']
+        )
+
         submitted = st.form_submit_button("Submit Application")
         if submitted:
-            data = dict(
-                name=name, national_id=national_id, staff_status=staff_status, monthly_salary=monthly_salary,
-                loan_amount=loan_amount, interest=interest, total_to_repay=total_to_repay,
-                repayment_date=repayment_date.strftime("%Y-%m-%d"), guarantor_name=guarantor_name,
-                guarantor_id=guarantor_id, guarantor_phone=guarantor_phone, submitted_date=submitted_date
-            )
-            insert_application(conn, data)
-            st.success("Application submitted. Admin will review it.")
-            st.info("Tip: Keep IDs as text (avoid scientific notation).")
+            if support_letter_file is None or photo_file is None:
+                st.error("Please upload both organization support letter and photo.")
+            else:
+                data = dict(
+                    name=name,
+                    national_id=national_id,
+                    staff_status=staff_status,
+                    monthly_salary=monthly_salary,
+                    loan_amount=loan_amount,
+                    interest=interest,
+                    total_to_repay=total_to_repay,
+                    repayment_date=repayment_date.strftime("%Y-%m-%d"),
+                    guarantor_name=guarantor_name,
+                    guarantor_id=guarantor_id,
+                    guarantor_phone=guarantor_phone,
+                    submitted_date=submitted_date,
+                    support_letter=support_letter_file.read(),
+                    photo=photo_file.read()
+                )
+                insert_application(conn, data)
+                st.success("Application submitted. Admin will review the uploaded support letter and photo.")
+                st.info("Tip: Keep IDs as text (avoid scientific notation).")
 
 # -------------------------------
 # 2️⃣ Admin Dashboard
@@ -190,6 +210,20 @@ elif page == "Admin Dashboard":
         st.write("**Guarantor:**", app_row['guarantor_name'], "| ID:", app_row['guarantor_id'], "| Phone:", app_row['guarantor_phone'])
         st.write("**Status:**", app_row['status'])
         st.write("**Admin comment:**", app_row['admin_comment'] if app_row['admin_comment'] else "-")
+
+        st.markdown("---")
+        # Show uploaded files
+        st.subheader("Uploaded Documents")
+        st.write("Organization Support / Salary Letter:")
+        if app_row['support_letter']:
+            st.download_button(
+                label="Download Letter",
+                data=app_row['support_letter'],
+                file_name=f"support_letter_{selected}.pdf"
+            )
+        st.write("Applicant Photo:")
+        if app_row['photo']:
+            st.image(app_row['photo'], caption="Applicant Photo", use_column_width=True)
 
         st.markdown("---")
         colA, colB, colC = st.columns(3)
@@ -278,4 +312,3 @@ else:
 st.write(f"💰 **Interest Rate:** {interest_rate}%")
 st.write(f"📆 **Monthly Payment:** {monthly_payment:.2f}")
 st.write(f"💵 **Total Payment:** {total_payment:.2f}")
-
