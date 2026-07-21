@@ -113,14 +113,16 @@ def determine_interest_rate(months):
 
 def calculate_loan(amount, months):
 
+    amount = float(amount)
+    months = int(months)
+
     rate = determine_interest_rate(months)
 
-    monthly_rate = rate / 100 / 12
-
-
     if amount <= 0:
-
         return rate, 0, 0, 0
+
+
+    monthly_rate = rate / 100 / 12
 
 
     monthly_payment = (
@@ -162,85 +164,60 @@ def save_application(data):
         """
         INSERT INTO applications
         (
-            full_name,
-            national_id,
-            phone,
-            staff_status,
-            monthly_salary,
-            loan_amount,
-            duration,
-            interest_rate,
-            interest_amount,
-            monthly_payment,
-            total_payment,
-            repayment_date,
-            loan_end_date,
-            guarantor_name,
-            guarantor_id,
-            guarantor_phone,
-            support_letter,
-            photo,
-            submitted_date,
-            status,
-            admin_comment,
-            notified
+        full_name,
+        national_id,
+        phone,
+        staff_status,
+        monthly_salary,
+        loan_amount,
+        duration,
+        interest_rate,
+        interest_amount,
+        monthly_payment,
+        total_payment,
+        repayment_date,
+        loan_end_date,
+        guarantor_name,
+        guarantor_id,
+        guarantor_phone,
+        support_letter,
+        photo,
+        submitted_date,
+        status,
+        admin_comment,
+        notified
         )
 
         VALUES
-        (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-        )
-
+        (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """,
 
         (
 
-            data["full_name"],
-
-            data["national_id"],
-
-            data["phone"],
-
-            data["staff_status"],
-
-            data["monthly_salary"],
-
-            data["loan_amount"],
-
-            data["duration"],
-
-            data["interest_rate"],
-
-            data["interest_amount"],
-
-            data["monthly_payment"],
-
-            data["total_payment"],
-
-            data["repayment_date"],
-
-            data["loan_end_date"],
-
-            data["guarantor_name"],
-
-            data["guarantor_id"],
-
-            data["guarantor_phone"],
-
-            data["support_letter"],
-
-            data["photo"],
-
-            data["submitted_date"],
-
-            "Pending",
-
-            "",
-
-            0
+        data["full_name"],
+        data["national_id"],
+        data["phone"],
+        data["staff_status"],
+        data["monthly_salary"],
+        data["loan_amount"],
+        data["duration"],
+        data["interest_rate"],
+        data["interest_amount"],
+        data["monthly_payment"],
+        data["total_payment"],
+        data["repayment_date"],
+        data["loan_end_date"],
+        data["guarantor_name"],
+        data["guarantor_id"],
+        data["guarantor_phone"],
+        data["support_letter"],
+        data["photo"],
+        data["submitted_date"],
+        "Pending",
+        "",
+        0
 
         )
-
     )
 
 
@@ -256,51 +233,53 @@ def save_application(data):
 
 def get_applications(conn, status="All"):
 
-
-    if status == "All":
-
-
-        query = """
-        SELECT *
-        FROM applications
-        ORDER BY id DESC
-        """
+    cur = conn.cursor()
 
 
-        df = pd.read_sql_query(
-            query,
-            conn
+    if status != "All":
+
+        cur.execute(
+            """
+            SELECT *
+            FROM applications
+            WHERE status=?
+            ORDER BY id DESC
+            """,
+            (status,)
         )
-
 
     else:
 
-
-        query = """
-        SELECT *
-        FROM applications
-        WHERE status = ?
-        ORDER BY id DESC
-        """
-
-
-        df = pd.read_sql_query(
-            query,
-            conn,
-            params=(status,)
+        cur.execute(
+            """
+            SELECT *
+            FROM applications
+            ORDER BY id DESC
+            """
         )
 
 
-    return df
+    rows = cur.fetchall()
+
+
+    columns = [
+        col[0]
+        for col in cur.description
+    ]
+
+
+    return pd.DataFrame(
+        rows,
+        columns=columns
+    )
 
 
 
 # =====================================================
-# UPDATE APPROVE / REJECT STATUS
+# UPDATE STATUS
 # =====================================================
 
 def update_status(conn, application_id, status, comment):
-
 
     cur = conn.cursor()
 
@@ -308,13 +287,10 @@ def update_status(conn, application_id, status, comment):
     cur.execute(
         """
         UPDATE applications
-
         SET
-            status = ?,
-            admin_comment = ?
-
-        WHERE id = ?
-
+        status=?,
+        admin_comment=?
+        WHERE id=?
         """,
 
         (
@@ -322,7 +298,6 @@ def update_status(conn, application_id, status, comment):
             comment,
             application_id
         )
-
     )
 
 
