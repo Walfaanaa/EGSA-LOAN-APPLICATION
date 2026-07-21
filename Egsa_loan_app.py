@@ -274,32 +274,23 @@ def get_applications(conn, status="All"):
     )
 
 
-
-# =====================================================
-# UPDATE STATUS
-# =====================================================
-
 def update_status(conn, application_id, status, comment):
 
     cur = conn.cursor()
 
-
     cur.execute(
         """
         UPDATE applications
-        SET
-        status=?,
-        admin_comment=?
+        SET status=?,
+            admin_comment=?
         WHERE id=?
         """,
-
         (
             status,
             comment,
             application_id
         )
     )
-
 
     conn.commit()
 # =====================================================
