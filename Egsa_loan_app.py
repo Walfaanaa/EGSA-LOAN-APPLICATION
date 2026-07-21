@@ -286,13 +286,55 @@ page = st.sidebar.selectbox(
 # LOAN APPLICATION
 # =====================================================
 
-if page=="Apply for Loan":
+if page == "Apply for Loan":
 
     st.title("💰 EGSA Loan Application")
 
     st.write("Complete all information below.")
 
-       st.divider()
+
+    # -----------------------------
+    # Personal Information
+    # -----------------------------
+
+    st.subheader("Personal Information")
+
+
+    full_name = st.text_input(
+        "Full Name"
+    )
+
+
+    national_id = st.text_input(
+        "National ID"
+    )
+
+
+    phone = st.text_input(
+        "Phone Number"
+    )
+
+
+    staff_status = st.selectbox(
+        "Staff Status",
+        [
+            "Permanent",
+            "Contract",
+            "Temporary",
+            "Other"
+        ]
+    )
+
+
+    monthly_salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0,
+        step=100.0
+    )
+
+
+    st.divider()
+
 
 
     # -----------------------------
@@ -305,9 +347,7 @@ if page=="Apply for Loan":
     loan_amount = st.number_input(
         "Loan Amount",
         min_value=0.0,
-        value=0.0,
-        step=100.0,
-        key="loan_amount_input"
+        step=100.0
     )
 
 
@@ -315,21 +355,9 @@ if page=="Apply for Loan":
         "Loan Duration (Months)",
         min_value=1,
         max_value=60,
-        value=12,
-        step=1,
-        key="loan_duration_input"
+        value=12
     )
 
-
-    # Convert values
-
-    loan_amount = float(loan_amount)
-
-    duration = int(duration)
-
-
-
-    # Calculate Loan
 
     interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
         loan_amount,
@@ -342,7 +370,7 @@ if page=="Apply for Loan":
     )
 
 
-    col1, col2 = st.columns(2)
+    col1,col2 = st.columns(2)
 
 
     with col1:
@@ -373,194 +401,203 @@ if page=="Apply for Loan":
         )
 
 
-# -----------------------------
-# Loan Eligibility Check
-# -----------------------------
 
-max_payment = monthly_salary * 0.40
+    # -----------------------------
+    # Eligibility
+    # -----------------------------
 
+    max_payment = monthly_salary * 0.40
 
-if monthly_salary > 0:
 
-    if monthly_payment <= max_payment:
+    if monthly_salary > 0:
 
-        st.success(
-            "✅ Eligible for Loan"
-        )
+        if monthly_payment <= max_payment:
 
-    else:
+            st.success(
+                "✅ Eligible for Loan"
+            )
 
-        st.error(
-            f"❌ Monthly payment exceeds 40% of salary. "
-            f"Maximum allowed: {max_payment:,.2f} ETB"
-        )
+        else:
 
+            st.error(
+                f"❌ Monthly payment exceeds 40% of salary. "
+                f"Maximum allowed: {max_payment:,.2f} ETB"
+            )
 
-from dateutil.relativedelta import relativedelta
 
 
-repayment_date = st.date_input(
-    "Repayment Start Date",
-    value=date.today()+timedelta(days=30)
-)
+    # -----------------------------
+    # Repayment Date
+    # -----------------------------
 
+    repayment_date = st.date_input(
+        "Repayment Start Date",
+        value=date.today()+timedelta(days=30)
+    )
 
-loan_end_date = repayment_date + relativedelta(months=duration)
 
+    from dateutil.relativedelta import relativedelta
 
-st.info(
-    f"📅 Loan End Date: {loan_end_date.strftime('%Y-%m-%d')}"
-)
 
-# -----------------------------
-# Guarantor
-# -----------------------------
+    loan_end_date = repayment_date + relativedelta(
+        months=int(duration)
+    )
 
-st.divider()
 
-st.subheader("Guarantor")
+    st.info(
+        f"📅 Loan End Date: {loan_end_date.strftime('%Y-%m-%d')}"
+    )
 
 
-guarantor_name = st.text_input(
-    "Guarantor Name"
-)
 
+    st.divider()
 
-guarantor_id = st.text_input(
-    "Guarantor National ID"
-)
 
 
-guarantor_phone = st.text_input(
-    "Guarantor Phone"
-)
+    # -----------------------------
+    # Guarantor
+    # -----------------------------
 
+    st.subheader("Guarantor")
 
 
-# -----------------------------
-# Documents
-# -----------------------------
+    guarantor_name = st.text_input(
+        "Guarantor Name"
+    )
 
-st.divider()
 
-st.subheader("Upload Documents")
+    guarantor_id = st.text_input(
+        "Guarantor National ID"
+    )
 
 
-support_letter = st.file_uploader(
-    "Support Letter",
-    type=["pdf","jpg","jpeg","png"]
-)
+    guarantor_phone = st.text_input(
+        "Guarantor Phone"
+    )
 
 
-photo = st.file_uploader(
-    "Passport Photo",
-    type=["jpg","jpeg","png"]
-)
 
+    st.divider()
 
 
-# -----------------------------
-# Agreement
-# -----------------------------
 
-st.divider()
+    # -----------------------------
+    # Documents
+    # -----------------------------
 
+    st.subheader("Upload Documents")
 
-agree = st.checkbox(
-    "I agree with the Loan Guarantee Agreement."
-)
 
+    support_letter = st.file_uploader(
+        "Support Letter",
+        type=["pdf","jpg","jpeg","png"]
+    )
 
 
-submit = st.button(
-    "Submit Application"
-)
+    photo = st.file_uploader(
+        "Passport Photo",
+        type=["jpg","jpeg","png"]
+    )
 
 
 
-if submit:
+    st.divider()
 
 
-    if not agree:
 
-        st.error(
-            "Please accept the agreement."
-        )
+    agree = st.checkbox(
+        "I agree with the Loan Guarantee Agreement."
+    )
 
 
-    elif support_letter is None:
 
-        st.error(
-            "Upload support letter."
-        )
+    submit = st.button(
+        "Submit Application"
+    )
 
 
-    elif photo is None:
 
-        st.error(
-            "Upload passport photo."
-        )
+    if submit:
 
 
-    elif monthly_payment > max_payment:
+        if not agree:
 
-        st.error(
-            "Loan is not eligible."
-        )
+            st.error(
+                "Please accept the agreement."
+            )
 
 
-    else:
+        elif support_letter is None:
 
+            st.error(
+                "Upload support letter."
+            )
 
-        data = {
 
+        elif photo is None:
 
-            "full_name": full_name,
+            st.error(
+                "Upload passport photo."
+            )
 
-            "national_id": national_id,
 
-            "phone": phone,
+        elif monthly_payment > max_payment:
 
-            "staff_status": staff_status,
+            st.error(
+                "Loan is not eligible."
+            )
 
-            "monthly_salary": monthly_salary,
 
-            "loan_amount": loan_amount,
+        else:
 
-            "duration": duration,
 
-            "interest_rate": interest_rate,
+            data = {
 
-            "interest_amount": interest_amount,
+                "full_name":full_name,
 
-            "monthly_payment": monthly_payment,
+                "national_id":national_id,
 
-            "total_payment": total_payment,
+                "phone":phone,
 
-            "repayment_date": repayment_date.strftime("%Y-%m-%d"),
+                "staff_status":staff_status,
 
-            "guarantor_name": guarantor_name,
+                "monthly_salary":monthly_salary,
 
-            "guarantor_id": guarantor_id,
+                "loan_amount":loan_amount,
 
-            "guarantor_phone": guarantor_phone,
+                "duration":duration,
 
-            "support_letter": support_letter.read(),
+                "interest_rate":interest_rate,
 
-            "photo": photo.read(),
+                "interest_amount":interest_amount,
 
-            "submitted_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "monthly_payment":monthly_payment,
 
-        }
+                "total_payment":total_payment,
 
+                "repayment_date":repayment_date.strftime("%Y-%m-%d"),
 
+                "guarantor_name":guarantor_name,
 
-        save_application(data)
+                "guarantor_id":guarantor_id,
 
+                "guarantor_phone":guarantor_phone,
 
-        st.success(
-            "🎉 Loan application submitted successfully."
-        )
+                "support_letter":support_letter.read(),
+
+                "photo":photo.read(),
+
+                "submitted_date":datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            }
+
+
+            save_application(data)
+
+
+            st.success(
+                "🎉 Loan application submitted successfully."
+            )
 # -------------------------------
 # 2️⃣ Admin Dashboard
 # -------------------------------
