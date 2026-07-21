@@ -345,21 +345,11 @@ if page == "Apply for Loan":
 
     st.subheader("Personal Information")
 
+    full_name = st.text_input("Full Name")
 
-    full_name = st.text_input(
-        "Full Name"
-    )
+    national_id = st.text_input("National ID")
 
-
-    national_id = st.text_input(
-        "National ID"
-    )
-
-
-    phone = st.text_input(
-        "Phone Number"
-    )
-
+    phone = st.text_input("Phone Number")
 
     staff_status = st.selectbox(
         "Staff Status",
@@ -380,7 +370,6 @@ if page == "Apply for Loan":
 
 
     st.divider()
-
 
 
     # -----------------------------
@@ -416,7 +405,7 @@ if page == "Apply for Loan":
     )
 
 
-    col1,col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
 
     with col1:
@@ -447,30 +436,29 @@ if page == "Apply for Loan":
         )
 
 
-
     # -----------------------------
-# Loan Eligibility Check
-# -----------------------------
+    # Loan Eligibility Check
+    # -----------------------------
 
-max_payment = float(monthly_salary) * 0.40
+    max_payment = monthly_salary * 0.40
 
 
-if monthly_salary > 0:
+    if monthly_salary > 0:
 
-    if monthly_payment <= max_payment:
+        if monthly_payment <= max_payment:
 
-        st.success(
-            f"✅ Eligible for Loan\n\n"
-            f"Maximum allowed monthly payment: {max_payment:,.2f} ETB"
-        )
+            st.success(
+                f"✅ Eligible for Loan\n\n"
+                f"Maximum allowed monthly payment: {max_payment:,.2f} ETB"
+            )
 
-    else:
+        else:
 
-        st.error(
-            f"❌ Loan is not eligible.\n\n"
-            f"Monthly payment: {monthly_payment:,.2f} ETB\n"
-            f"Maximum allowed: {max_payment:,.2f} ETB"
-        )
+            st.error(
+                f"❌ Loan is not eligible.\n\n"
+                f"Monthly payment: {monthly_payment:,.2f} ETB\n"
+                f"Maximum allowed: {max_payment:,.2f} ETB"
+            )
 
     # -----------------------------
     # Repayment Date
