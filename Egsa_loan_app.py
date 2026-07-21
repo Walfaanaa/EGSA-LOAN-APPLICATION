@@ -508,23 +508,36 @@ if page == "Apply for Loan":
 
     st.divider()
 
-    # -----------------------------
     # Upload Documents
-    # -----------------------------
 
-    st.subheader("Upload Documents")
+st.subheader("Upload Documents")
 
-    support_letter = st.file_uploader(
-        "Support Letter",
-        type=["pdf", "jpg", "jpeg", "png"]
-    )
+support_letter = st.file_uploader(
+    "Support Letter",
+    type=["pdf", "jpg", "jpeg", "png"]
+)
 
-    photo = st.file_uploader(
-        "Passport Photo",
-        type=["jpg", "jpeg", "png"]
-    )
+photo = st.file_uploader(
+    "Passport Photo",
+    type=["jpg", "jpeg", "png"]
+)
 
-    st.divider()
+st.divider()
+
+
+# Submit Button
+
+if st.button("Submit Loan Application"):
+
+    if support_letter is None:
+        st.error("Please upload the Support Letter.")
+        st.stop()
+
+    if photo is None:
+        st.error("Please upload Passport Photo.")
+        st.stop()
+
+    st.success("Loan Application Submitted Successfully")
 
     # -----------------------------
     # Agreement
