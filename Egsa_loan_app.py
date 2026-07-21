@@ -450,3 +450,39 @@ if page == "Apply for Loan":
         )
 
     st.divider()
+
+    # -----------------------------
+    # Loan Eligibility
+    # -----------------------------
+
+    max_payment = monthly_salary * 0.40
+
+    if monthly_salary > 0:
+
+        if monthly_payment <= max_payment:
+
+            st.success(
+                f"✅ Eligible for Loan\n\n"
+                f"Maximum Monthly Payment: {max_payment:,.2f} ETB"
+            )
+
+        else:
+
+            st.error(
+                f"❌ Loan is not eligible.\n\n"
+                f"Monthly Payment: {monthly_payment:,.2f} ETB\n"
+                f"Maximum Allowed: {max_payment:,.2f} ETB"
+            )
+
+    repayment_date = st.date_input(
+        "Repayment Start Date",
+        value=date.today() + timedelta(days=30)
+    )
+
+    loan_end_date = repayment_date + relativedelta(months=duration)
+
+    st.info(
+        f"📅 Loan End Date: {loan_end_date.strftime('%Y-%m-%d')}"
+    )
+
+    st.divider()
