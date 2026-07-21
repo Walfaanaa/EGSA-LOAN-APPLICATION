@@ -429,7 +429,6 @@ repayment_date = st.date_input(
     "Repayment Start Date",
     value=date.today()+timedelta(days=30)
 )
-    st.divider()
 
 
    st.divider()
