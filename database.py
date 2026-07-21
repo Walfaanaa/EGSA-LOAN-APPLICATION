@@ -1,19 +1,19 @@
-# update_db.py
-# This script safely adds 'monthly_payment' column to your database if missing.
+import streamlit as st
+import mysql.connector
 
-import sqlite3
 
-DB_PATH = "loan_applications.db"
+def get_connection():
 
-conn = sqlite3.connect(DB_PATH)
-cur = conn.cursor()
+    conn = mysql.connector.connect(
 
-# Add the column if not already in the table
-try:
-    cur.execute("ALTER TABLE applications ADD COLUMN monthly_payment REAL")
-    print("✅ 'monthly_payment' column added successfully.")
-except sqlite3.OperationalError:
-    print("ℹ️ Column 'monthly_payment' already exists — no changes made.")
+        host=st.secrets["DB_HOST"],
+        port=st.secrets["DB_PORT"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASSWORD"],
+        database=st.secrets["DB_NAME"],
 
-conn.commit()
-conn.close()
+        ssl_ca="tidb-ca.pem"
+
+    )
+
+    return conn
