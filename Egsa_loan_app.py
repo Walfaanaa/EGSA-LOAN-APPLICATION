@@ -486,3 +486,24 @@ if page == "Apply for Loan":
     )
 
     st.divider()
+
+
+    # -----------------------------
+    # Guarantor Information
+    # -----------------------------
+
+    st.subheader("Guarantor")
+
+    guarantor_name = st.text_input(
+        "Guarantor Name"
+    )
+
+    guarantor_id = st.text_input(
+        "Guarantor National ID"
+    )
+
+    guarantor_phone = st.text_input(
+        "Guarantor Phone"
+    )
+
+    st.divider()
