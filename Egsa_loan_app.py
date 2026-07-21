@@ -260,6 +260,52 @@ def save_application(data):
     conn.commit()
 
     conn.close()
+# =====================================================
+# GET APPLICATIONS
+# =====================================================
+
+def get_applications(conn, status=None):
+
+    cur = conn.cursor()
+
+    if status and status != "All":
+
+        cur.execute(
+            """
+            SELECT *
+            FROM applications
+            WHERE status = ?
+            ORDER BY submitted_date DESC
+            """,
+            (status,)
+        )
+
+    else:
+
+        cur.execute(
+            """
+            SELECT *
+            FROM applications
+            ORDER BY submitted_date DESC
+            """
+        )
+
+
+    rows = cur.fetchall()
+
+    columns = [
+        description[0]
+        for description in cur.description
+    ]
+
+
+    df = pd.DataFrame(
+        rows,
+        columns=columns
+    )
+
+
+    return df
 
 
 # =====================================================
