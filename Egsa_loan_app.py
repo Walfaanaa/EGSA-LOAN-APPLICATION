@@ -415,10 +415,6 @@ elif page == "Loan Calculator":
     st.title("🧮 Loan Calculator")
 
 
-# =====================================================
-# APPLY FOR LOAN
-# =====================================================
-
 if page == "Apply for Loan":
 
     st.title("💰 EGSA Loan Application")
@@ -427,23 +423,13 @@ if page == "Apply for Loan":
 
     st.divider()
 
-    # -----------------------------
-    # Personal Information
-    # -----------------------------
-
     st.subheader("Personal Information")
 
-    full_name = st.text_input(
-        "Full Name"
-    )
+    full_name = st.text_input("Full Name")
 
-    national_id = st.text_input(
-        "National ID"
-    )
+    national_id = st.text_input("National ID")
 
-    phone = st.text_input(
-        "Phone Number"
-    )
+    phone = st.text_input("Phone Number")
 
     staff_status = st.selectbox(
         "Staff Status",
