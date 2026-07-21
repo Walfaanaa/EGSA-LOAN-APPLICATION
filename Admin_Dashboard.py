@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from database import get_connection
+from datetime import datetime
 
 
 st.set_page_config(
@@ -28,7 +29,7 @@ if not st.session_state.admin_login:
     )
 
 
-    if st.button("Login"):
+    if st.button("🔐 Login"):
 
         if password == "admin123":
 
@@ -49,7 +50,6 @@ if not st.session_state.admin_login:
 # LOAD PENDING LOANS
 # ============================
 
-
 conn = get_connection()
 
 
@@ -69,6 +69,8 @@ SELECT
 
 FROM loan_applications
 
+WHERE status='Pending'
+
 ORDER BY created_at DESC
 """
 
@@ -83,38 +85,79 @@ conn.close()
 
 
 
-st.subheader("📋 Loan Applications")
+st.subheader("📋 Pending Loan Applications")
 
 
 if df.empty:
 
-    st.info("No loan applications found")
-
-else:
-
-    st.dataframe(
-        df,
-        use_container_width=True
+    st.info(
+        "No pending loan applications"
     )
+
+    st.stop()
+
+
+
+st.dataframe(
+    df,
+    use_container_width=True
+)
 
 
 
 # ============================
-# APPROVAL SECTION
+# SELECT LOAN
 # ============================
 
 
 st.divider()
 
-st.subheader("Loan Decision")
+st.subheader("🔎 Review Loan")
 
 
-loan_id = st.number_input(
-    "Enter Loan ID",
-    min_value=1,
-    step=1
+selected_id = st.selectbox(
+    "Select Loan ID",
+    df["loan_id"].tolist()
 )
 
+
+
+selected_loan = df[
+    df["loan_id"] == selected_id
+].iloc[0]
+
+
+
+st.write(
+    f"""
+### Applicant Information
+
+**Name:** {selected_loan['full_name']}
+
+**National ID:** {selected_loan['national_id']}
+
+**Phone:** {selected_loan['phone']}
+
+
+### Loan Information
+
+**Amount:** {selected_loan['loan_amount']:,.2f} ETB
+
+**Monthly Payment:** {selected_loan['monthly_payment']:,.2f} ETB
+
+
+### Guarantor
+
+**Name:** {selected_loan['guarantor_name']}
+
+"""
+)
+
+
+
+# ============================
+# DECISION
+# ============================
 
 
 col1, col2 = st.columns(2)
@@ -123,7 +166,10 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    if st.button("✅ Approve Loan"):
+    if st.button(
+        "✅ Approve Loan",
+        use_container_width=True
+    ):
 
 
         conn = get_connection()
@@ -134,10 +180,15 @@ with col1:
         cursor.execute(
             """
             UPDATE loan_applications
-            SET status='Approved'
+
+            SET 
+                status='Approved'
+
             WHERE loan_id=%s
             """,
-            (loan_id,)
+            (
+                selected_id,
+            )
         )
 
 
@@ -157,7 +208,10 @@ with col1:
 
 with col2:
 
-    if st.button("❌ Reject Loan"):
+    if st.button(
+        "❌ Reject Loan",
+        use_container_width=True
+    ):
 
 
         conn = get_connection()
@@ -168,10 +222,15 @@ with col2:
         cursor.execute(
             """
             UPDATE loan_applications
-            SET status='Rejected'
+
+            SET 
+                status='Rejected'
+
             WHERE loan_id=%s
             """,
-            (loan_id,)
+            (
+                selected_id,
+            )
         )
 
 
