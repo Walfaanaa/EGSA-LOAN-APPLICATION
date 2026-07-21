@@ -186,7 +186,6 @@ guarantor_phone = st.text_input(
     "Guarantor Phone"
 )
 
-
 # =====================================================
 # UPLOAD DOCUMENTS
 # =====================================================
@@ -197,39 +196,42 @@ st.subheader("📂 Upload Documents")
 support_letter = st.file_uploader(
     "Support Letter",
     type=["pdf", "jpg", "jpeg", "png"],
-    key="support_letter_upload"
+    key="loan_support_letter"
 )
 
 
-photo = st.file_uploader(
+passport_photo = st.file_uploader(
     "Passport Photo",
     type=["jpg", "jpeg", "png"],
-    key="passport_photo_upload"
+    key="loan_passport_photo"
 )
 
 
-# Debug check
+# Display selected files
 
 if support_letter is not None:
+    st.success(
+        f"✅ Support Letter Selected: {support_letter.name}"
+    )
 
-    st.success("✅ Support Letter uploaded")
+else:
+    st.warning(
+        "⚠️ Support Letter not selected"
+    )
 
-    st.write("File name:", support_letter.name)
-    st.write("File type:", support_letter.type)
-    st.write("File size:", support_letter.size, "bytes")
 
+if passport_photo is not None:
+    st.success(
+        f"✅ Passport Photo Selected: {passport_photo.name}"
+    )
 
-if photo is not None:
-
-    st.success("✅ Passport Photo uploaded")
-
-    st.write("File name:", photo.name)
-    st.write("File type:", photo.type)
-    st.write("File size:", photo.size, "bytes")
+else:
+    st.warning(
+        "⚠️ Passport Photo not selected"
+    )
 
 
 st.divider()
-
 
 # =====================================================
 # SUBMIT APPLICATION
