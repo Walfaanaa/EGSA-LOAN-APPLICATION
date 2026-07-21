@@ -430,10 +430,6 @@ repayment_date = st.date_input(
     value=date.today()+timedelta(days=30)
 )
 
-
-   st.divider()
-
-
 # -----------------------------
 # Guarantor
 # -----------------------------
