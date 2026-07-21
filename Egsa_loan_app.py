@@ -292,146 +292,265 @@ if page=="Apply for Loan":
 
     st.write("Complete all information below.")
 
-    with st.form("loan_form"):
+    # -----------------------------
+    # Personal Information
+    # -----------------------------
 
-        st.subheader("Personal Information")
+    st.subheader("Personal Information")
 
-        full_name = st.text_input("Full Name")
+    full_name = st.text_input("Full Name")
 
-        national_id = st.text_input("National ID")
+    national_id = st.text_input("National ID")
 
-        phone = st.text_input("Phone Number")
+    phone = st.text_input("Phone Number")
 
-        staff_status = st.selectbox(
+    staff_status = st.selectbox(
+        "Staff Status",
+        [
+            "Permanent",
+            "Contract",
+            "Temporary",
+            "Other"
+        ]
+    )
 
-            "Staff Status",
+    monthly_salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0,
+        step=100.0
+    )
 
-            [
 
-                "Permanent",
+    st.divider()
 
-                "Contract",
 
-                "Temporary",
+    # -----------------------------
+    # Loan Information
+    # -----------------------------
 
-                "Other"
+    st.subheader("Loan Information")
 
-            ]
 
+    loan_amount = st.number_input(
+        "Loan Amount",
+        min_value=0.0,
+        step=100.0
+    )
+
+
+    duration = st.number_input(
+        "Loan Duration (Months)",
+        min_value=1,
+        max_value=60,
+        value=12
+    )
+
+
+    interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
+        loan_amount,
+        duration
+    )
+
+
+    st.success(
+        f"Interest Rate : {interest_rate}%"
+    )
+
+
+    col1, col2 = st.columns(2)
+
+
+    with col1:
+
+        st.metric(
+            "Interest Amount",
+            f"{interest_amount:,.2f} ETB"
         )
 
-        monthly_salary = st.number_input(
-
-            "Monthly Salary",
-
-            min_value=0.0,
-
-            step=100.0
-
+        st.metric(
+            "Monthly Payment",
+            f"{monthly_payment:,.2f} ETB"
         )
 
-        st.divider()
 
-        st.subheader("Loan Information")
+    with col2:
 
-        loan_amount = st.number_input(
-
+        st.metric(
             "Loan Amount",
-
-            min_value=0.0,
-
-            step=100.0
-
+            f"{loan_amount:,.2f} ETB"
         )
 
-        duration = st.number_input(
-
-            "Loan Duration (Months)",
-
-            min_value=1,
-
-            max_value=60,
-
-            value=12
-
+        st.metric(
+            "Total Repayment",
+            f"{total_payment:,.2f} ETB"
         )
 
-        interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
 
-            loan_amount,
+    max_payment = monthly_salary * 0.40
 
-            duration
 
-        )
+    if monthly_salary > 0:
 
-        repayment_date = st.date_input(
+        if monthly_payment <= max_payment:
 
-            "Repayment Start Date",
-
-            value=date.today()+timedelta(days=30)
-
-        )
-
-        st.success(f"Interest Rate : {interest_rate}%")
-
-        col1,col2=st.columns(2)
-
-        with col1:
-
-            st.metric(
-
-                "Interest Amount",
-
-                f"{interest_amount:,.2f} ETB"
-
+            st.success(
+                "✅ Eligible for Loan"
             )
 
-            st.metric(
+        else:
 
-                "Monthly Payment",
-
-                f"{monthly_payment:,.2f} ETB"
-
+            st.error(
+                f"❌ Monthly payment exceeds 40% of salary. Maximum allowed: {max_payment:,.2f} ETB"
             )
 
-        with col2:
 
-            st.metric(
+    repayment_date = st.date_input(
+        "Repayment Start Date",
+        value=date.today()+timedelta(days=30)
+    )
 
-                "Loan Amount",
 
-                f"{loan_amount:,.2f} ETB"
+    st.divider()
 
+
+    # -----------------------------
+    # Guarantor
+    # -----------------------------
+
+    st.subheader("Guarantor")
+
+
+    guarantor_name = st.text_input(
+        "Guarantor Name"
+    )
+
+
+    guarantor_id = st.text_input(
+        "Guarantor National ID"
+    )
+
+
+    guarantor_phone = st.text_input(
+        "Guarantor Phone"
+    )
+
+
+    st.divider()
+
+
+    # -----------------------------
+    # Documents
+    # -----------------------------
+
+    st.subheader("Upload Documents")
+
+
+    support_letter = st.file_uploader(
+        "Support Letter",
+        type=["pdf","jpg","jpeg","png"]
+    )
+
+
+    photo = st.file_uploader(
+        "Passport Photo",
+        type=["jpg","jpeg","png"]
+    )
+
+
+    st.divider()
+
+
+    agree = st.checkbox(
+        "I agree with the Loan Guarantee Agreement."
+    )
+
+
+    submit = st.button(
+        "Submit Application"
+    )
+
+
+    if submit:
+
+
+        if not agree:
+
+            st.error(
+                "Please accept the agreement."
             )
 
-            st.metric(
 
-                "Total Repayment",
+        elif support_letter is None:
 
-                f"{total_payment:,.2f} ETB"
-
+            st.error(
+                "Upload support letter."
             )
 
-        max_payment = monthly_salary * 0.40
 
-        if monthly_salary>0:
+        elif photo is None:
 
-            if monthly_payment<=max_payment:
+            st.error(
+                "Upload passport photo."
+            )
 
-                st.success(
 
-                    "✅ Eligible for Loan"
+        elif monthly_payment > max_payment:
 
-                )
+            st.error(
+                "Loan is not eligible."
+            )
 
-            else:
 
-                st.error(
+        else:
 
-                    f"❌ Monthly payment exceeds 40% of salary.\nMaximum allowed: {max_payment:,.2f} ETB"
 
-                )
+            data={
 
+                "full_name":full_name,
+
+                "national_id":national_id,
+
+                "phone":phone,
+
+                "staff_status":staff_status,
+
+                "monthly_salary":monthly_salary,
+
+                "loan_amount":loan_amount,
+
+                "duration":duration,
+
+                "interest_rate":interest_rate,
+
+                "interest_amount":interest_amount,
+
+                "monthly_payment":monthly_payment,
+
+                "total_payment":total_payment,
+
+                "repayment_date":repayment_date.strftime("%Y-%m-%d"),
+
+                "guarantor_name":guarantor_name,
+
+                "guarantor_id":guarantor_id,
+
+                "guarantor_phone":guarantor_phone,
+
+                "support_letter":support_letter.read(),
+
+                "photo":photo.read(),
+
+                "submitted_date":datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            }
+
+
+            save_application(data)
+
+
+            st.success(
+                "🎉 Loan application submitted successfully."
+            )
         st.divider()
 
         st.subheader("Guarantor")
