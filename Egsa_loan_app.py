@@ -237,7 +237,6 @@ st.divider()
 # SUBMIT APPLICATION
 # =====================================================
 
-
 if st.button("📤 Submit Loan Application"):
 
 
@@ -276,7 +275,9 @@ if st.button("📤 Submit Loan Application"):
 
 
 
-    if photo is None:
+    # FIXED: photo --> passport_photo
+
+    if passport_photo is None:
 
         st.error(
             "Please upload the Passport Photo."
@@ -286,9 +287,12 @@ if st.button("📤 Submit Loan Application"):
 
 
 
-    # Save Documents
+    # =====================================================
+    # SAVE DOCUMENTS
+    # =====================================================
 
     upload_folder = "uploads"
+
 
     os.makedirs(
         upload_folder,
@@ -301,8 +305,8 @@ if st.button("📤 Submit Loan Application"):
     )
 
 
-    photo_filename = (
-        f"{uuid.uuid4()}_{photo.name}"
+    passport_filename = (
+        f"{uuid.uuid4()}_{passport_photo.name}"
     )
 
 
@@ -324,13 +328,13 @@ if st.button("📤 Submit Loan Application"):
     with open(
         os.path.join(
             upload_folder,
-            photo_filename
+            passport_filename
         ),
         "wb"
     ) as f:
 
         f.write(
-            photo.getbuffer()
+            passport_photo.getbuffer()
         )
 
 
