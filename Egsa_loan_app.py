@@ -1,3 +1,4 @@
+from database import get_connection
 import streamlit as st
 from datetime import date
 from dateutil.relativedelta import relativedelta
@@ -266,23 +267,12 @@ if st.button("📤 Submit Loan Application"):
 
 
     if support_letter is None:
-
-        st.error(
-            "Please upload the Support Letter."
-        )
-
+        st.error("Please upload the Support Letter.")
         st.stop()
 
 
-
-    # FIXED: photo --> passport_photo
-
     if passport_photo is None:
-
-        st.error(
-            "Please upload the Passport Photo."
-        )
-
+        st.error("Please upload the Passport Photo.")
         st.stop()
 
 
@@ -292,7 +282,6 @@ if st.button("📤 Submit Loan Application"):
     # =====================================================
 
     upload_folder = "uploads"
-
 
     os.makedirs(
         upload_folder,
@@ -310,12 +299,20 @@ if st.button("📤 Submit Loan Application"):
     )
 
 
+    support_path = os.path.join(
+        upload_folder,
+        support_filename
+    )
+
+
+    passport_path = os.path.join(
+        upload_folder,
+        passport_filename
+    )
+
 
     with open(
-        os.path.join(
-            upload_folder,
-            support_filename
-        ),
+        support_path,
         "wb"
     ) as f:
 
@@ -324,12 +321,8 @@ if st.button("📤 Submit Loan Application"):
         )
 
 
-
     with open(
-        os.path.join(
-            upload_folder,
-            passport_filename
-        ),
+        passport_path,
         "wb"
     ) as f:
 
@@ -339,11 +332,121 @@ if st.button("📤 Submit Loan Application"):
 
 
 
-    st.success(
-        "🎉 Loan Application Submitted Successfully!"
-    )
+    # =====================================================
+    # SAVE LOAN INFORMATION TO DATABASE
+    # =====================================================
+
+    try:
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
 
 
-    st.write(
-        "Documents saved successfully."
-    )
+        query = """
+        INSERT INTO loan_applications
+        (
+            full_name,
+            national_id,
+            phone,
+
+            staff_status,
+            monthly_salary,
+
+            loan_amount,
+            loan_duration,
+
+            interest_rate,
+            interest_amount,
+
+            monthly_payment,
+            total_repayment,
+
+            repayment_start,
+            loan_end_date,
+
+            guarantor_name,
+            guarantor_id,
+            guarantor_phone,
+
+            support_letter,
+            passport_photo,
+
+            status
+        )
+
+        VALUES
+        (
+            %s,%s,%s,
+            %s,%s,
+            %s,%s,
+            %s,%s,
+            %s,%s,
+            %s,%s,
+            %s,%s,%s,
+            %s,%s,
+            %s
+        )
+        """
+
+
+        values = (
+
+            full_name,
+            national_id,
+            phone,
+
+            staff_status,
+            monthly_salary,
+
+            loan_amount,
+            loan_duration,
+
+            interest_rate,
+            interest_amount,
+
+            monthly_payment,
+            total_repayment,
+
+            repayment_start,
+            loan_end_date,
+
+            guarantor_name,
+            guarantor_id,
+            guarantor_phone,
+
+            support_path,
+            passport_path,
+
+            "Pending"
+        )
+
+
+        cursor.execute(
+            query,
+            values
+        )
+
+
+        conn.commit()
+
+
+        cursor.close()
+        conn.close()
+
+
+        st.success(
+            "🎉 Loan Application Submitted Successfully!"
+        )
+
+
+        st.info(
+            "Your loan application is waiting for approval."
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            f"Database Error: {e}"
+        )
