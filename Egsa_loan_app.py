@@ -325,91 +325,110 @@ if page=="Apply for Loan":
 
 
     # -----------------------------
-    # Loan Information
-    # -----------------------------
+# Loan Information
+# -----------------------------
 
-    st.subheader("Loan Information")
+st.subheader("Loan Information")
 
 
-    loan_amount = st.number_input(
+loan_amount = st.number_input(
+    "Loan Amount",
+    min_value=0.0,
+    value=0.0,
+    step=100.0,
+    key="loan_amount_input"
+)
+
+
+duration = st.number_input(
+    "Loan Duration (Months)",
+    min_value=1,
+    max_value=60,
+    value=12,
+    step=1,
+    key="loan_duration_input"
+)
+
+
+# Convert values
+loan_amount = float(loan_amount)
+duration = int(duration)
+
+
+# Calculate Loan
+interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
+    loan_amount,
+    duration
+)
+
+
+st.success(
+    f"Interest Rate : {interest_rate}%"
+)
+
+
+col1, col2 = st.columns(2)
+
+
+with col1:
+
+    st.metric(
+        "Interest Amount",
+        f"{interest_amount:,.2f} ETB"
+    )
+
+
+    st.metric(
+        "Monthly Payment",
+        f"{monthly_payment:,.2f} ETB"
+    )
+
+
+with col2:
+
+    st.metric(
         "Loan Amount",
-        min_value=0.0,
-        step=100.0
+        f"{loan_amount:,.2f} ETB"
     )
 
 
-    duration = st.number_input(
-        "Loan Duration (Months)",
-        min_value=1,
-        max_value=60,
-        value=12
+    st.metric(
+        "Total Repayment",
+        f"{total_payment:,.2f} ETB"
     )
 
 
-    interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
-        loan_amount,
-        duration
-    )
+# -----------------------------
+# Loan Eligibility Check
+# -----------------------------
+
+max_payment = monthly_salary * 0.40
 
 
-    st.success(
-        f"Interest Rate : {interest_rate}%"
-    )
+if monthly_salary > 0:
 
+    if monthly_payment <= max_payment:
 
-    col1, col2 = st.columns(2)
-
-
-    with col1:
-
-        st.metric(
-            "Interest Amount",
-            f"{interest_amount:,.2f} ETB"
+        st.success(
+            "✅ Eligible for Loan"
         )
 
-        st.metric(
-            "Monthly Payment",
-            f"{monthly_payment:,.2f} ETB"
+    else:
+
+        st.error(
+            f"❌ Monthly payment exceeds 40% of salary. "
+            f"Maximum allowed: {max_payment:,.2f} ETB"
         )
 
 
-    with col2:
+# -----------------------------
+# Repayment Date
+# -----------------------------
 
-        st.metric(
-            "Loan Amount",
-            f"{loan_amount:,.2f} ETB"
-        )
-
-        st.metric(
-            "Total Repayment",
-            f"{total_payment:,.2f} ETB"
-        )
-
-
-    max_payment = monthly_salary * 0.40
-
-
-    if monthly_salary > 0:
-
-        if monthly_payment <= max_payment:
-
-            st.success(
-                "✅ Eligible for Loan"
-            )
-
-        else:
-
-            st.error(
-                f"❌ Monthly payment exceeds 40% of salary. Maximum allowed: {max_payment:,.2f} ETB"
-            )
-
-
-    repayment_date = st.date_input(
-        "Repayment Start Date",
-        value=date.today()+timedelta(days=30)
-    )
-
-
+repayment_date = st.date_input(
+    "Repayment Start Date",
+    value=date.today()+timedelta(days=30)
+)
     st.divider()
 
 
