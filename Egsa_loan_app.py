@@ -599,13 +599,18 @@ if page == "Apply for Loan":
                 "🎉 Loan application submitted successfully."
             )
 # -------------------------------
+# -------------------------------
 # 2️⃣ Admin Dashboard
 # -------------------------------
 
 elif page == "Admin Dashboard":
 
-    st.header("📊 Admin Dashboard")
+    st.header("📊 EGSA Loan Admin Dashboard")
 
+
+    # -----------------------------
+    # Admin Login
+    # -----------------------------
 
     if "logged_in" not in st.session_state:
 
@@ -613,27 +618,25 @@ elif page == "Admin Dashboard":
 
 
 
-    # -----------------------------
-    # Admin Login
-    # -----------------------------
-
     if not st.session_state.logged_in:
 
 
-        pw = st.text_input(
-            "Enter admin password",
+        password = st.text_input(
+            "Admin Password",
             type="password"
         )
 
 
-        if st.button("Login"):
+        if st.button("🔐 Login"):
 
-            if pw == ADMIN_PASSWORD:
+
+            if password == ADMIN_PASSWORD:
+
 
                 st.session_state.logged_in = True
 
                 st.success(
-                    "✅ Logged in as Admin"
+                    "✅ Admin Login Successful"
                 )
 
                 st.rerun()
@@ -642,7 +645,7 @@ elif page == "Admin Dashboard":
             else:
 
                 st.error(
-                    "❌ Wrong password"
+                    "❌ Invalid Password"
                 )
 
 
@@ -651,17 +654,18 @@ elif page == "Admin Dashboard":
 
 
     # -----------------------------
-    # Application Filter
+    # Filter
     # -----------------------------
 
-    col1, col2 = st.columns([3,1])
+
+    col1,col2 = st.columns([3,1])
 
 
     with col1:
 
         status_filter = st.selectbox(
 
-            "Filter Application Status",
+            "Application Status",
 
             [
                 "All",
@@ -682,8 +686,9 @@ elif page == "Admin Dashboard":
 
 
     # -----------------------------
-    # Load Data
+    # Get Applications
     # -----------------------------
+
 
     df = get_applications(
         conn,
@@ -691,7 +696,7 @@ elif page == "Admin Dashboard":
     )
 
 
-    st.write(
+    st.info(
         f"Total Applications: {len(df)}"
     )
 
@@ -700,15 +705,16 @@ elif page == "Admin Dashboard":
     if df.empty:
 
 
-        st.info(
-            "No applications found."
+        st.warning(
+            "No loan applications found."
         )
+
 
 
     else:
 
 
-        # Remove files from table view
+        # Hide uploaded files
 
         safe_df = df.drop(
 
@@ -719,6 +725,12 @@ elif page == "Admin Dashboard":
 
             errors="ignore"
 
+        )
+
+
+
+        st.subheader(
+            "📋 Loan Applications"
         )
 
 
@@ -738,6 +750,8 @@ elif page == "Admin Dashboard":
 
             }),
 
+            use_container_width=True,
+
             height=400
 
         )
@@ -745,12 +759,13 @@ elif page == "Admin Dashboard":
 
 
         # -----------------------------
-        # Select Application
+        # Select Applicant
         # -----------------------------
+
 
         selected = st.selectbox(
 
-            "Select Application ID",
+            "Select Application",
 
             options=df["id"].tolist()
 
@@ -758,7 +773,9 @@ elif page == "Admin Dashboard":
 
 
         app_row = df[
+
             df["id"] == selected
+
         ].iloc[0]
 
 
@@ -767,115 +784,159 @@ elif page == "Admin Dashboard":
 
 
         st.subheader(
-            f"Application ID: {selected}"
+            f"📄 Application ID: {selected}"
         )
 
 
-        st.write(
-            "👤 Name:",
-            app_row["full_name"]
-        )
+
+        col1,col2 = st.columns(2)
 
 
-        st.write(
-            "🆔 National ID:",
-            app_row["national_id"]
-        )
 
+        with col1:
 
-        st.write(
-            "📞 Phone:",
-            app_row["phone"]
-        )
-
-
-        st.write(
-            "👷 Staff Status:",
-            app_row["staff_status"]
-        )
-
-
-        st.write(
-            "💰 Monthly Salary:",
-            f"{app_row['monthly_salary']:,.2f} ETB"
-        )
-
-
-        st.write(
-            "💵 Loan Amount:",
-            f"{app_row['loan_amount']:,.2f} ETB"
-        )
-
-
-        st.write(
-            "📅 Duration:",
-            app_row["duration"],
-            "Months"
-        )
-
-
-        st.write(
-            "📈 Interest Rate:",
-            f"{app_row['interest_rate']}%"
-        )
-
-
-        st.write(
-            "💸 Interest Amount:",
-            f"{app_row['interest_amount']:,.2f} ETB"
-        )
-
-
-        st.write(
-            "📆 Monthly Payment:",
-            f"{app_row['monthly_payment']:,.2f} ETB"
-        )
-
-
-        st.write(
-            "💰 Total Repayment:",
-            f"{app_row['total_payment']:,.2f} ETB"
-        )
-
-
-        st.write(
-            "🗓 Start Date:",
-            app_row["repayment_date"]
-        )
-
-
-        if "loan_end_date" in app_row:
 
             st.write(
-                "🏁 End Date:",
-                app_row["loan_end_date"]
+                "👤 Name:",
+                app_row["full_name"]
             )
 
 
+            st.write(
+                "🆔 National ID:",
+                app_row["national_id"]
+            )
+
+
+            st.write(
+                "📞 Phone:",
+                app_row["phone"]
+            )
+
+
+            st.write(
+                "👷 Staff Status:",
+                app_row["staff_status"]
+            )
+
+
+            st.write(
+                "💰 Salary:",
+                f"{app_row['monthly_salary']:,.2f} ETB"
+            )
+
+
+
+        with col2:
+
+
+            st.write(
+                "💵 Loan Amount:",
+                f"{app_row['loan_amount']:,.2f} ETB"
+            )
+
+
+            st.write(
+                "📆 Duration:",
+                f"{app_row['duration']} Months"
+            )
+
+
+            st.write(
+                "📈 Interest Rate:",
+                f"{app_row['interest_rate']}%"
+            )
+
+
+            st.write(
+                "💸 Interest Amount:",
+                f"{app_row['interest_amount']:,.2f} ETB"
+            )
+
+
+            st.write(
+                "📅 Monthly Payment:",
+                f"{app_row['monthly_payment']:,.2f} ETB"
+            )
+
+
+
         st.write(
-            "🤝 Guarantor:",
+
+            "💰 Total Repayment:",
+
+            f"{app_row['total_payment']:,.2f} ETB"
+
+        )
+
+
+
+        st.write(
+
+            "🗓 Start Date:",
+
+            app_row["repayment_date"]
+
+        )
+
+
+
+        if "loan_end_date" in df.columns:
+
+
+            st.write(
+
+                "🏁 End Date:",
+
+                app_row["loan_end_date"]
+
+            )
+
+
+
+        st.divider()
+
+
+
+        # -----------------------------
+        # Guarantor
+        # -----------------------------
+
+
+        st.subheader(
+            "🤝 Guarantor Information"
+        )
+
+
+        st.write(
+
+            "Name:",
+
             app_row["guarantor_name"]
+
         )
 
 
         st.write(
-            "📞 Guarantor Phone:",
+
+            "National ID:",
+
+            app_row["guarantor_id"]
+
+        )
+
+
+        st.write(
+
+            "Phone:",
+
             app_row["guarantor_phone"]
+
         )
 
 
-        st.write(
-            "📌 Status:",
-            app_row["status"]
-        )
 
-
-        st.write(
-            "💬 Admin Comment:",
-            app_row["admin_comment"]
-            if app_row["admin_comment"]
-            else "-"
-        )
+        st.divider()
 
 
 
@@ -883,10 +944,9 @@ elif page == "Admin Dashboard":
         # Documents
         # -----------------------------
 
-        st.divider()
 
         st.subheader(
-            "📂 Uploaded Documents"
+            "📂 Documents"
         )
 
 
@@ -895,7 +955,7 @@ elif page == "Admin Dashboard":
 
             st.download_button(
 
-                label="📄 Download Support Letter",
+                "📄 Download Support Letter",
 
                 data=app_row["support_letter"],
 
@@ -920,12 +980,13 @@ elif page == "Admin Dashboard":
 
 
 
-        # -----------------------------
-        # Approve Reject Delete
-        # -----------------------------
-
-
         st.divider()
+
+
+
+        # -----------------------------
+        # Approval Control
+        # -----------------------------
 
 
         colA,colB,colC = st.columns(3)
@@ -936,13 +997,11 @@ elif page == "Admin Dashboard":
 
 
             approve_comment = st.text_area(
-
-                "Approve Comment"
-
+                "Approval Comment"
             )
 
 
-            if st.button("✅ Approve"):
+            if st.button("✅ Approve Loan"):
 
 
                 update_status(
@@ -971,13 +1030,11 @@ elif page == "Admin Dashboard":
 
 
             reject_comment = st.text_area(
-
                 "Reject Comment"
-
             )
 
 
-            if st.button("❌ Reject"):
+            if st.button("❌ Reject Loan"):
 
 
                 update_status(
@@ -1005,7 +1062,7 @@ elif page == "Admin Dashboard":
         with colC:
 
 
-            if st.button("🗑 Delete"):
+            if st.button("🗑 Delete Application"):
 
 
                 cur = conn.cursor()
@@ -1024,7 +1081,7 @@ elif page == "Admin Dashboard":
 
 
                 st.success(
-                    "Application Deleted"
+                    "Deleted Successfully"
                 )
 
 
@@ -1036,18 +1093,22 @@ elif page == "Admin Dashboard":
         # Export
         # -----------------------------
 
+
         csv = safe_df.to_csv(
+
             index=False
+
         ).encode("utf-8")
+
 
 
         st.download_button(
 
-            label="⬇️ Download CSV",
+            "⬇️ Download Excel/CSV Report",
 
             data=csv,
 
-            file_name=f"loan_applications_{datetime.now().strftime('%Y%m%d')}.csv",
+            file_name=f"EGSA_Loan_Report_{datetime.now().strftime('%Y%m%d')}.csv",
 
             mime="text/csv"
 
