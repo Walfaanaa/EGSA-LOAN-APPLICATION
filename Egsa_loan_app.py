@@ -383,3 +383,51 @@ elif page == "Loan Calculator":
 
     st.title("🧮 Loan Calculator")
 
+
+# =====================================================
+# APPLY FOR LOAN
+# =====================================================
+
+if page == "Apply for Loan":
+
+    st.title("💰 EGSA Loan Application")
+
+    st.write("Complete all information below.")
+
+    st.divider()
+
+    # -----------------------------
+    # Personal Information
+    # -----------------------------
+
+    st.subheader("Personal Information")
+
+    full_name = st.text_input(
+        "Full Name"
+    )
+
+    national_id = st.text_input(
+        "National ID"
+    )
+
+    phone = st.text_input(
+        "Phone Number"
+    )
+
+    staff_status = st.selectbox(
+        "Staff Status",
+        [
+            "Permanent",
+            "Contract",
+            "Temporary",
+            "Other"
+        ]
+    )
+
+    monthly_salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0,
+        step=100.0
+    )
+
+    st.divider()
