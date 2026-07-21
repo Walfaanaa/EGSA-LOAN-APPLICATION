@@ -330,3 +330,56 @@ def delete_application(application_id):
 
     conn.close()
 
+
+# =====================================================
+# SIDEBAR MENU
+# =====================================================
+
+st.sidebar.title("💰 EGSA Loan System")
+
+page = st.sidebar.radio(
+
+    "Select Menu",
+
+    [
+
+        "Apply for Loan",
+
+        "Admin Dashboard",
+
+        "Loan Calculator"
+
+    ]
+
+)
+
+
+# =====================================================
+# APPLY FOR LOAN
+# =====================================================
+
+if page == "Apply for Loan":
+
+    st.title("💰 EGSA Loan Application")
+
+    st.write("Complete all information below.")
+
+# =====================================================
+# ADMIN DASHBOARD
+# =====================================================
+
+elif page == "Admin Dashboard":
+
+    st.title("📊 EGSA Loan Admin Dashboard")
+
+
+
+
+# =====================================================
+# LOAN CALCULATOR
+# =====================================================
+
+elif page == "Loan Calculator":
+
+    st.title("🧮 Loan Calculator")
+
