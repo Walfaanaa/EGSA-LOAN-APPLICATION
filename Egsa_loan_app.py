@@ -1,163 +1,544 @@
-# -------------------------------
-# streamlit_Egsa_loan_app.py
-# Final Version – Oct 2025
-# Includes: Loan App + Guarantee + Photo Upload + Admin Dashboard + Calculator
-# -------------------------------
-
 import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime, date, timedelta
 
-# ---------- CONFIG ----------
-DB_PATH = "loan_applications.db"
-ADMIN_PASSWORD = "admin123"  # Change before deployment
+# =====================================================
+# CONFIGURATION
+# =====================================================
 
-# ---------- DB HELPERS ----------
+st.set_page_config(
+    page_title="EGSA Loan Management System",
+    page_icon="💰",
+    layout="wide"
+)
+
+DB_NAME = "loan_applications.db"
+ADMIN_PASSWORD = "admin123"
+
+# =====================================================
+# DATABASE
+# =====================================================
+
+def get_connection():
+    return sqlite3.connect(DB_NAME, check_same_thread=False)
+
+
 def init_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = get_connection()
     cur = conn.cursor()
+
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS applications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            national_id TEXT,
-            staff_status TEXT,
-            monthly_salary REAL,
-            loan_amount REAL,
-            interest REAL,
-            total_to_repay REAL,
-            repayment_date TEXT,
-            guarantor_name TEXT,
-            guarantor_id TEXT,
-            guarantor_phone TEXT,
-            submitted_date TEXT,
-            status TEXT DEFAULT 'Pending',
-            admin_comment TEXT,
-            notified INTEGER DEFAULT 0,
-            support_letter BLOB,
-            photo BLOB
-        )
+    CREATE TABLE IF NOT EXISTS applications(
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        full_name TEXT,
+
+        national_id TEXT,
+
+        phone TEXT,
+
+        staff_status TEXT,
+
+        monthly_salary REAL,
+
+        loan_amount REAL,
+
+        duration INTEGER,
+
+        interest_rate REAL,
+
+        interest_amount REAL,
+
+        monthly_payment REAL,
+
+        total_payment REAL,
+
+        repayment_date TEXT,
+
+        guarantor_name TEXT,
+
+        guarantor_id TEXT,
+
+        guarantor_phone TEXT,
+
+        support_letter BLOB,
+
+        photo BLOB,
+
+        submitted_date TEXT,
+
+        status TEXT DEFAULT 'Pending',
+
+        admin_comment TEXT,
+
+        notified INTEGER DEFAULT 0
+
+    )
     """)
+
     conn.commit()
+
     return conn
 
-def insert_application(conn, data: dict):
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO applications
-        (name, national_id, staff_status, monthly_salary, loan_amount, interest, total_to_repay,
-         repayment_date, guarantor_name, guarantor_id, guarantor_phone, submitted_date, status,
-         admin_comment, notified, support_letter, photo)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (
-        data['name'], data['national_id'], data['staff_status'], data['monthly_salary'], data['loan_amount'],
-        data['interest'], data['total_to_repay'], data['repayment_date'], data['guarantor_name'],
-        data['guarantor_id'], data['guarantor_phone'], data['submitted_date'], "Pending", "", 0,
-        data['support_letter'], data['photo']
-    ))
-    conn.commit()
 
-def get_applications(conn, status=None):
-    cur = conn.cursor()
-    if status and status != "All":
-        cur.execute("SELECT * FROM applications WHERE status = ? ORDER BY submitted_date DESC", (status,))
-    else:
-        cur.execute("SELECT * FROM applications ORDER BY submitted_date DESC")
-    rows = cur.fetchall()
-    cols = [d[0] for d in cur.description]
-    return pd.DataFrame(rows, columns=cols)
-
-def update_status(conn, app_id, new_status, comment=""):
-    cur = conn.cursor()
-    cur.execute("UPDATE applications SET status = ?, admin_comment = ?, notified = 0 WHERE id = ?", 
-                (new_status, comment, app_id))
-    conn.commit()
-
-def mark_notified(conn, app_id):
-    cur = conn.cursor()
-    cur.execute("UPDATE applications SET notified = 1 WHERE id = ?", (app_id,))
-    conn.commit()
-
-# ---------- SAFE RERUN ----------
-def safe_rerun():
-    st.session_state["refresh"] = True
-
-if st.session_state.get("refresh"):
-    st.session_state["refresh"] = False
-    st.rerun()
-
-# ---------- STREAMLIT PAGE ----------
-st.set_page_config(page_title="Loan Application System", layout="wide")
 conn = init_db()
 
-st.title("Loan Application System (For EGSA Members)")
+# =====================================================
+# FUNCTIONS
+# =====================================================
 
-pages = ["Apply for Loan", "Admin Dashboard", "Loan Calculator"]
-page = st.sidebar.selectbox("Go to", pages)
+def determine_interest_rate(months):
 
-# -------------------------------
-# 1️⃣ Loan Application Form
-# -------------------------------
-if page == "Apply for Loan":
-    st.header("Loan Application Form")
-    st.write("Fill out all required fields and submit your application.")
+    if months <= 3:
+        return 20
 
-    with st.form("loan_form", clear_on_submit=True):
-        name = st.text_input("Full Name")
+    elif months <= 6:
+        return 25
+
+    elif months <= 9:
+        return 30
+
+    elif months <= 12:
+        return 35
+
+    elif months <= 36:
+        return 40
+
+    else:
+        return 45
+
+
+def calculate_loan(amount, months):
+
+    rate = determine_interest_rate(months)
+
+    monthly_rate = rate / 100 / 12
+
+    if amount <= 0:
+
+        return rate,0,0,0
+
+    monthly_payment = (
+
+        amount
+
+        * monthly_rate
+
+        * (1 + monthly_rate) ** months
+
+    ) / (
+
+        (1 + monthly_rate) ** months - 1
+
+    )
+
+    total_payment = monthly_payment * months
+
+    interest_amount = total_payment - amount
+
+    return (
+
+        rate,
+
+        interest_amount,
+
+        monthly_payment,
+
+        total_payment
+
+    )
+
+
+def save_application(data):
+
+    conn = get_connection()
+
+    cur = conn.cursor()
+
+    cur.execute("""
+
+    INSERT INTO applications(
+
+    full_name,
+
+    national_id,
+
+    phone,
+
+    staff_status,
+
+    monthly_salary,
+
+    loan_amount,
+
+    duration,
+
+    interest_rate,
+
+    interest_amount,
+
+    monthly_payment,
+
+    total_payment,
+
+    repayment_date,
+
+    guarantor_name,
+
+    guarantor_id,
+
+    guarantor_phone,
+
+    support_letter,
+
+    photo,
+
+    submitted_date,
+
+    status,
+
+    admin_comment,
+
+    notified
+
+    )
+
+    VALUES(
+
+    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+
+    )
+
+    """,(
+
+        data["full_name"],
+
+        data["national_id"],
+
+        data["phone"],
+
+        data["staff_status"],
+
+        data["monthly_salary"],
+
+        data["loan_amount"],
+
+        data["duration"],
+
+        data["interest_rate"],
+
+        data["interest_amount"],
+
+        data["monthly_payment"],
+
+        data["total_payment"],
+
+        data["repayment_date"],
+
+        data["guarantor_name"],
+
+        data["guarantor_id"],
+
+        data["guarantor_phone"],
+
+        data["support_letter"],
+
+        data["photo"],
+
+        data["submitted_date"],
+
+        "Pending",
+
+        "",
+
+        0
+
+    ))
+
+    conn.commit()
+
+    conn.close()
+
+
+# =====================================================
+# SIDEBAR
+# =====================================================
+
+page = st.sidebar.selectbox(
+
+    "Menu",
+
+    [
+
+        "Apply for Loan",
+
+        "Admin Dashboard",
+
+        "Loan Calculator"
+
+    ]
+
+)
+
+# =====================================================
+# LOAN APPLICATION
+# =====================================================
+
+if page=="Apply for Loan":
+
+    st.title("💰 EGSA Loan Application")
+
+    st.write("Complete all information below.")
+
+    with st.form("loan_form"):
+
+        st.subheader("Personal Information")
+
+        full_name = st.text_input("Full Name")
+
         national_id = st.text_input("National ID")
-        staff_status = st.selectbox("Staff Status", ["Active", "Inactive", "Contractor", "Other"])
-        monthly_salary = st.number_input("Monthly Salary", min_value=0.0, value=0.0, step=100.0, format="%.2f")
-        loan_amount = st.number_input("Loan Amount Requested", min_value=0.0, value=0.0, step=100.0, format="%.2f")
-        interest = st.number_input("Interest (amount or percent)", min_value=0.0, value=0.0, step=1.0, format="%.2f")
-        total_to_repay = st.number_input("Total to Repay", min_value=0.0, value=0.0, step=100.0, format="%.2f")
-        repayment_date = st.date_input("Repayment Date", value=date.today() + timedelta(days=30))
-        guarantor_name = st.text_input("Guarantor Name")
-        guarantor_id = st.text_input("Guarantor ID")
-        guarantor_phone = st.text_input("Guarantor Phone")
-        submitted_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Uploads
-        st.markdown("### Upload Documents")
-        support_letter_file = st.file_uploader("Organization Support / Salary Letter (PDF or Image)", type=['pdf', 'png', 'jpg', 'jpeg'])
-        photo_file = st.file_uploader("Your Photo", type=['png', 'jpg', 'jpeg'])
+        phone = st.text_input("Phone Number")
 
-        # Loan Guarantee Agreement
-        st.subheader("Loan Guarantee and Borrower Agreement")
-        st.markdown("""
-I, the Guarantor, jointly and severally guarantee repayment of the Borrower’s loan, including interest and related charges.  
-EGSA may recover the loan directly from the Guarantor if the Borrower defaults.  
-This guarantee remains in effect until the loan is fully repaid.  
-No delay or forbearance by EGSA shall waive any of its rights.
-""")
-        agree = st.checkbox("I have read and agree to the Loan Guarantee and Borrower Agreement")
+        staff_status = st.selectbox(
 
-        submitted = st.form_submit_button("Submit Application")
+            "Staff Status",
 
-        if submitted:
-            if not agree:
-                st.error("You must agree to the Loan Guarantee and Borrower Agreement before submitting.")
-            elif support_letter_file is None or photo_file is None:
-                st.error("Please upload both support letter and photo.")
-            else:
-                data = dict(
-                    name=name,
-                    national_id=national_id,
-                    staff_status=staff_status,
-                    monthly_salary=monthly_salary,
-                    loan_amount=loan_amount,
-                    interest=interest,
-                    total_to_repay=total_to_repay,
-                    repayment_date=repayment_date.strftime("%Y-%m-%d"),
-                    guarantor_name=guarantor_name,
-                    guarantor_id=guarantor_id,
-                    guarantor_phone=guarantor_phone,
-                    submitted_date=submitted_date,
-                    support_letter=support_letter_file.read(),
-                    photo=photo_file.read()
+            [
+
+                "Permanent",
+
+                "Contract",
+
+                "Temporary",
+
+                "Other"
+
+            ]
+
+        )
+
+        monthly_salary = st.number_input(
+
+            "Monthly Salary",
+
+            min_value=0.0,
+
+            step=100.0
+
+        )
+
+        st.divider()
+
+        st.subheader("Loan Information")
+
+        loan_amount = st.number_input(
+
+            "Loan Amount",
+
+            min_value=0.0,
+
+            step=100.0
+
+        )
+
+        duration = st.number_input(
+
+            "Loan Duration (Months)",
+
+            min_value=1,
+
+            max_value=60,
+
+            value=12
+
+        )
+
+        interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
+
+            loan_amount,
+
+            duration
+
+        )
+
+        repayment_date = st.date_input(
+
+            "Repayment Start Date",
+
+            value=date.today()+timedelta(days=30)
+
+        )
+
+        st.success(f"Interest Rate : {interest_rate}%")
+
+        col1,col2=st.columns(2)
+
+        with col1:
+
+            st.metric(
+
+                "Interest Amount",
+
+                f"{interest_amount:,.2f} ETB"
+
+            )
+
+            st.metric(
+
+                "Monthly Payment",
+
+                f"{monthly_payment:,.2f} ETB"
+
+            )
+
+        with col2:
+
+            st.metric(
+
+                "Loan Amount",
+
+                f"{loan_amount:,.2f} ETB"
+
+            )
+
+            st.metric(
+
+                "Total Repayment",
+
+                f"{total_payment:,.2f} ETB"
+
+            )
+
+        max_payment = monthly_salary * 0.40
+
+        if monthly_salary>0:
+
+            if monthly_payment<=max_payment:
+
+                st.success(
+
+                    "✅ Eligible for Loan"
+
                 )
-                insert_application(conn, data)
-                st.success("✅ Application submitted successfully. Admin will review your documents.")
+
+            else:
+
+                st.error(
+
+                    f"❌ Monthly payment exceeds 40% of salary.\nMaximum allowed: {max_payment:,.2f} ETB"
+
+                )
+
+        st.divider()
+
+        st.subheader("Guarantor")
+
+        guarantor_name = st.text_input("Guarantor Name")
+
+        guarantor_id = st.text_input("Guarantor National ID")
+
+        guarantor_phone = st.text_input("Guarantor Phone")
+
+        st.divider()
+
+        st.subheader("Upload Documents")
+
+        support_letter = st.file_uploader(
+
+            "Support Letter",
+
+            type=["pdf","jpg","jpeg","png"]
+
+        )
+
+        photo = st.file_uploader(
+
+            "Passport Photo",
+
+            type=["jpg","jpeg","png"]
+
+        )
+
+        st.divider()
+
+        agree = st.checkbox(
+
+            "I agree with the Loan Guarantee Agreement."
+
+        )
+
+        submit = st.form_submit_button(
+
+            "Submit Application"
+
+        )
+
+        if submit:
+
+            if not agree:
+
+                st.error("Please accept the agreement.")
+
+            elif support_letter is None:
+
+                st.error("Upload support letter.")
+
+            elif photo is None:
+
+                st.error("Upload passport photo.")
+
+            elif monthly_payment>max_payment:
+
+                st.error("Loan is not eligible.")
+
+            else:
+
+                data={
+
+                    "full_name":full_name,
+
+                    "national_id":national_id,
+
+                    "phone":phone,
+
+                    "staff_status":staff_status,
+
+                    "monthly_salary":monthly_salary,
+
+                    "loan_amount":loan_amount,
+
+                    "duration":duration,
+
+                    "interest_rate":interest_rate,
+
+                    "interest_amount":interest_amount,
+
+                    "monthly_payment":monthly_payment,
+
+                    "total_payment":total_payment,
+
+                    "repayment_date":repayment_date.strftime("%Y-%m-%d"),
+
+                    "guarantor_name":guarantor_name,
+
+                    "guarantor_id":guarantor_id,
+
+                    "guarantor_phone":guarantor_phone,
+
+                    "support_letter":support_letter.read(),
+
+                    "photo":photo.read(),
+
+                    "submitted_date":datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                }
+
+                save_application(data)
+
+                st.success("🎉 Loan application submitted successfully.")
 
 # -------------------------------
 # 2️⃣ Admin Dashboard
