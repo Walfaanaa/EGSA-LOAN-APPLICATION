@@ -172,7 +172,6 @@ with col1:
         use_container_width=True
     ):
 
-
         conn = get_connection()
 
         cursor = conn.cursor()
@@ -183,12 +182,16 @@ with col1:
             UPDATE loan_applications
 
             SET 
-                status='Approved'
+                status='Approved',
+                approved_by=%s,
+                approved_date=%s
 
             WHERE loan_id=%s
             """,
             (
-                selected_id,
+                "Admin",              # change to logged-in username later
+                datetime.now(),       # current date and time
+                selected_id
             )
         )
 
@@ -201,48 +204,6 @@ with col1:
 
         st.success(
             "Loan Approved Successfully"
-        )
-
-        st.rerun()
-
-
-
-with col2:
-
-    if st.button(
-        "❌ Reject Loan",
-        use_container_width=True
-    ):
-
-
-        conn = get_connection()
-
-        cursor = conn.cursor()
-
-
-        cursor.execute(
-            """
-            UPDATE loan_applications
-
-            SET 
-                status='Rejected'
-
-            WHERE loan_id=%s
-            """,
-            (
-                selected_id,
-            )
-        )
-
-
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-
-
-        st.error(
-            "Loan Rejected"
         )
 
         st.rerun()
