@@ -432,31 +432,29 @@ repayment_date = st.date_input(
     st.divider()
 
 
-    # -----------------------------
-    # Guarantor
-    # -----------------------------
-
-    st.subheader("Guarantor")
+   st.divider()
 
 
-    guarantor_name = st.text_input(
-        "Guarantor Name"
-    )
+# -----------------------------
+# Guarantor
+# -----------------------------
+
+st.subheader("Guarantor")
 
 
-    guarantor_id = st.text_input(
-        "Guarantor National ID"
-    )
+guarantor_name = st.text_input(
+    "Guarantor Name"
+)
 
 
-    guarantor_phone = st.text_input(
-        "Guarantor Phone"
-    )
+guarantor_id = st.text_input(
+    "Guarantor National ID"
+)
 
 
-    st.divider()
-
-
+guarantor_phone = st.text_input(
+    "Guarantor Phone"
+)
     # -----------------------------
     # Documents
     # -----------------------------
