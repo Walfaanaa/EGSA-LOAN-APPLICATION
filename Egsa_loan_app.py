@@ -645,32 +645,30 @@ elif page == "Admin Dashboard":
         )
 
 # -------------------------------
-# 3️⃣ Loan Calculator
-# -------------------------------
-elif page == "Loan Calculator":
-    st.subheader("📋 Loan Calculator (Dynamic Interest)")
+with st.form("loan_form"):
 
-    def determine_interest_rate(months):
-        if months <= 3: return 20
-        elif months <= 6: return 25
-        elif months <= 9: return 30
-        elif months <= 12: return 35
-        elif months <= 36: return 40
-        else: return 45
+    full_name = st.text_input("Full Name")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        loan_amount_calc = st.number_input("Loan Amount", min_value=0.0, step=100.0)
-        duration = st.number_input("Duration (months)", min_value=1, step=1)
-    with col2:
-        interest_rate = determine_interest_rate(duration)
-        monthly_rate = interest_rate / 100 / 12
-        if loan_amount_calc > 0 and duration > 0:
-            monthly_payment = (loan_amount_calc * monthly_rate * (1 + monthly_rate) ** duration) / ((1 + monthly_rate) ** duration - 1)
-            total_payment = monthly_payment * duration
-        else:
-            monthly_payment, total_payment = 0.0, 0.0
+    national_id = st.text_input("National ID")
 
-        st.write(f"💰 **Interest Rate:** {interest_rate}%")
-        st.write(f"📆 **Monthly Payment:** {monthly_payment:.2f}")
-        st.write(f"💵 **Total Payment:** {total_payment:.2f}")
+    phone = st.text_input("Phone Number")
+
+    staff_status = st.selectbox(
+        "Staff Status",
+        [
+            "Permanent",
+            "Contract",
+            "Temporary",
+            "Other"
+        ]
+    )
+
+    monthly_salary = st.number_input(
+        "Monthly Salary",
+        min_value=0.0,
+        step=100.0
+    )
+
+    submitted = st.form_submit_button(
+        "Submit Application"
+    )
