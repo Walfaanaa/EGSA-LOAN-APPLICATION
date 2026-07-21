@@ -353,7 +353,6 @@ page = st.sidebar.radio(
 
 )
 
-
 # =====================================================
 # APPLY FOR LOAN
 # =====================================================
@@ -363,6 +362,7 @@ if page == "Apply for Loan":
     st.title("💰 EGSA Loan Application")
 
     st.write("Complete all information below.")
+
     st.divider()
 
     # -----------------------------
@@ -393,58 +393,60 @@ if page == "Apply for Loan":
         step=100.0
     )
 
-    st.divider()  
-
-# =====================================================
-# ADMIN DASHBOARD
-# =====================================================
-
-elif page == "Admin Dashboard":
-
-    st.title("📊 EGSA Loan Admin Dashboard")
-
-
-
-
-# =====================================================
-# LOAN CALCULATOR
-# =====================================================
-
-elif page == "Loan Calculator":
-
-    st.title("🧮 Loan Calculator")
-
-
-if page == "Apply for Loan":
-
-    st.title("💰 EGSA Loan Application")
-
-    st.write("Complete all information below.")
-
     st.divider()
 
-    st.subheader("Personal Information")
+        # -----------------------------
+    # Loan Information
+    # -----------------------------
 
-    full_name = st.text_input("Full Name")
+    st.subheader("Loan Information")
 
-    national_id = st.text_input("National ID")
-
-    phone = st.text_input("Phone Number")
-
-    staff_status = st.selectbox(
-        "Staff Status",
-        [
-            "Permanent",
-            "Contract",
-            "Temporary",
-            "Other"
-        ]
-    )
-
-    monthly_salary = st.number_input(
-        "Monthly Salary",
+    loan_amount = st.number_input(
+        "Loan Amount",
         min_value=0.0,
         step=100.0
     )
+
+    duration = st.number_input(
+        "Loan Duration (Months)",
+        min_value=1,
+        max_value=60,
+        value=12
+    )
+
+    interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
+        loan_amount,
+        duration
+    )
+
+    st.success(
+        f"Interest Rate : {interest_rate}%"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Interest Amount",
+            f"{interest_amount:,.2f} ETB"
+        )
+
+        st.metric(
+            "Monthly Payment",
+            f"{monthly_payment:,.2f} ETB"
+        )
+
+    with col2:
+
+        st.metric(
+            "Loan Amount",
+            f"{loan_amount:,.2f} ETB"
+        )
+
+        st.metric(
+            "Total Repayment",
+            f"{total_payment:,.2f} ETB"
+        )
 
     st.divider()
