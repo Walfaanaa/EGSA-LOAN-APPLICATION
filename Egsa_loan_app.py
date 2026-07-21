@@ -421,13 +421,20 @@ if monthly_salary > 0:
         )
 
 
-# -----------------------------
-# Repayment Date
-# -----------------------------
+from dateutil.relativedelta import relativedelta
+
 
 repayment_date = st.date_input(
     "Repayment Start Date",
     value=date.today()+timedelta(days=30)
+)
+
+
+loan_end_date = repayment_date + relativedelta(months=duration)
+
+
+st.info(
+    f"📅 Loan End Date: {loan_end_date.strftime('%Y-%m-%d')}"
 )
 
 # -----------------------------
