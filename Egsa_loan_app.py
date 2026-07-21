@@ -449,28 +449,28 @@ if page == "Apply for Loan":
 
 
     # -----------------------------
-    # Eligibility
-    # -----------------------------
+# Loan Eligibility Check
+# -----------------------------
 
-    max_payment = monthly_salary * 0.40
-
-
-    if monthly_salary > 0:
-
-        if monthly_payment <= max_payment:
-
-            st.success(
-                "✅ Eligible for Loan"
-            )
-
-        else:
-
-            st.error(
-                f"❌ Monthly payment exceeds 40% of salary. "
-                f"Maximum allowed: {max_payment:,.2f} ETB"
-            )
+max_payment = float(monthly_salary) * 0.40
 
 
+if monthly_salary > 0:
+
+    if monthly_payment <= max_payment:
+
+        st.success(
+            f"✅ Eligible for Loan\n\n"
+            f"Maximum allowed monthly payment: {max_payment:,.2f} ETB"
+        )
+
+    else:
+
+        st.error(
+            f"❌ Loan is not eligible.\n\n"
+            f"Monthly payment: {monthly_payment:,.2f} ETB\n"
+            f"Maximum allowed: {max_payment:,.2f} ETB"
+        )
 
     # -----------------------------
     # Repayment Date
