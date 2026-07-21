@@ -589,132 +589,454 @@ if submit:
 # -------------------------------
 # 2️⃣ Admin Dashboard
 # -------------------------------
+
 elif page == "Admin Dashboard":
-    st.header("Admin Dashboard")
+
+    st.header("📊 Admin Dashboard")
+
+
     if "logged_in" not in st.session_state:
+
         st.session_state.logged_in = False
 
+
+
+    # -----------------------------
+    # Admin Login
+    # -----------------------------
+
     if not st.session_state.logged_in:
-        pw = st.text_input("Enter admin password", type="password")
+
+
+        pw = st.text_input(
+            "Enter admin password",
+            type="password"
+        )
+
+
         if st.button("Login"):
+
             if pw == ADMIN_PASSWORD:
+
                 st.session_state.logged_in = True
-                st.success("Logged in as admin.")
+
+                st.success(
+                    "✅ Logged in as Admin"
+                )
+
                 st.rerun()
+
+
             else:
-                st.error("Wrong password.")
+
+                st.error(
+                    "❌ Wrong password"
+                )
+
+
         st.stop()
 
-    # Admin View
-    col1, col2 = st.columns([3,1])
-    with col1:
-        status_filter = st.selectbox("Filter by status", ["All", "Pending", "Approved", "Rejected"])
-    with col2:
-        if st.button("Refresh"):
-            safe_rerun()
 
-    df = get_applications(conn, status_filter)
-    st.write(f"Total applications: {len(df)}")
+
+    # -----------------------------
+    # Application Filter
+    # -----------------------------
+
+    col1, col2 = st.columns([3,1])
+
+
+    with col1:
+
+        status_filter = st.selectbox(
+
+            "Filter Application Status",
+
+            [
+                "All",
+                "Pending",
+                "Approved",
+                "Rejected"
+            ]
+
+        )
+
+
+    with col2:
+
+        if st.button("🔄 Refresh"):
+
+            st.rerun()
+
+
+
+    # -----------------------------
+    # Load Data
+    # -----------------------------
+
+    df = get_applications(
+        conn,
+        status_filter
+    )
+
+
+    st.write(
+        f"Total Applications: {len(df)}"
+    )
+
+
 
     if df.empty:
-        st.info("No applications found.")
+
+
+        st.info(
+            "No applications found."
+        )
+
+
     else:
-        # Exclude binary columns (prevent Unicode errors)
-        safe_df = df.drop(columns=['support_letter', 'photo'], errors='ignore')
+
+
+        # Remove files from table view
+
+        safe_df = df.drop(
+
+            columns=[
+                "support_letter",
+                "photo"
+            ],
+
+            errors="ignore"
+
+        )
+
 
         st.dataframe(
+
             safe_df.style.format({
-                'monthly_salary': '{:,.2f}',
-                'loan_amount': '{:,.2f}',
-                'total_to_repay': '{:,.2f}'
+
+                "monthly_salary":"{:,.2f}",
+
+                "loan_amount":"{:,.2f}",
+
+                "interest_amount":"{:,.2f}",
+
+                "monthly_payment":"{:,.2f}",
+
+                "total_payment":"{:,.2f}"
+
             }),
-            height=300
+
+            height=400
+
         )
 
-        selected = st.selectbox("Select Application ID to manage", options=df['id'].tolist())
-        app_row = df[df['id'] == selected].iloc[0]
 
-        st.subheader(f"Application ID: {selected} — {app_row['name']}")
-        st.write("**Submitted:**", app_row['submitted_date'])
-        st.write("**National ID:**", app_row['national_id'])
-        st.write("**Staff status:**", app_row['staff_status'])
-        st.write("**Monthly salary:**", app_row['monthly_salary'])
-        st.write("**Loan amount:**", app_row['loan_amount'])
-        st.write("**Interest:**", app_row['interest'])
-        st.write("**Total to repay:**", app_row['total_to_repay'])
-        st.write("**Repayment date:**", app_row['repayment_date'])
-        st.write("**Guarantor:**", app_row['guarantor_name'], "| ID:", app_row['guarantor_id'], "| Phone:", app_row['guarantor_phone'])
-        st.write("**Status:**", app_row['status'])
-        st.write("**Admin comment:**", app_row['admin_comment'] if app_row['admin_comment'] else "-")
 
-        st.markdown("---")
-        st.subheader("Uploaded Documents")
-        if app_row['support_letter']:
-            st.download_button(
-                label="📄 Download Support Letter",
-                data=app_row['support_letter'],
-                file_name=f"support_letter_{selected}.pdf"
+        # -----------------------------
+        # Select Application
+        # -----------------------------
+
+        selected = st.selectbox(
+
+            "Select Application ID",
+
+            options=df["id"].tolist()
+
+        )
+
+
+        app_row = df[
+            df["id"] == selected
+        ].iloc[0]
+
+
+
+        st.divider()
+
+
+        st.subheader(
+            f"Application ID: {selected}"
+        )
+
+
+        st.write(
+            "👤 Name:",
+            app_row["full_name"]
+        )
+
+
+        st.write(
+            "🆔 National ID:",
+            app_row["national_id"]
+        )
+
+
+        st.write(
+            "📞 Phone:",
+            app_row["phone"]
+        )
+
+
+        st.write(
+            "👷 Staff Status:",
+            app_row["staff_status"]
+        )
+
+
+        st.write(
+            "💰 Monthly Salary:",
+            f"{app_row['monthly_salary']:,.2f} ETB"
+        )
+
+
+        st.write(
+            "💵 Loan Amount:",
+            f"{app_row['loan_amount']:,.2f} ETB"
+        )
+
+
+        st.write(
+            "📅 Duration:",
+            app_row["duration"],
+            "Months"
+        )
+
+
+        st.write(
+            "📈 Interest Rate:",
+            f"{app_row['interest_rate']}%"
+        )
+
+
+        st.write(
+            "💸 Interest Amount:",
+            f"{app_row['interest_amount']:,.2f} ETB"
+        )
+
+
+        st.write(
+            "📆 Monthly Payment:",
+            f"{app_row['monthly_payment']:,.2f} ETB"
+        )
+
+
+        st.write(
+            "💰 Total Repayment:",
+            f"{app_row['total_payment']:,.2f} ETB"
+        )
+
+
+        st.write(
+            "🗓 Start Date:",
+            app_row["repayment_date"]
+        )
+
+
+        if "loan_end_date" in app_row:
+
+            st.write(
+                "🏁 End Date:",
+                app_row["loan_end_date"]
             )
-        if app_row['photo']:
-            st.image(app_row['photo'], caption="Applicant Photo", use_column_width=True)
 
-        # Approve / Reject / Delete
-        colA, colB, colC = st.columns(3)
-        with colA:
-            approve_comment = st.text_area("Comment before Approve", value="")
-            if st.button("Approve"):
-                update_status(conn, selected, "Approved", approve_comment)
-                mark_notified(conn, selected)
-                st.success("✅ Application Approved")
-                safe_rerun()
-        with colB:
-            reject_comment = st.text_area("Comment before Reject", value="")
-            if st.button("Reject"):
-                update_status(conn, selected, "Rejected", reject_comment)
-                mark_notified(conn, selected)
-                st.warning("❌ Application Rejected")
-                safe_rerun()
-        with colC:
-            if st.button("Delete Application"):
-                cur = conn.cursor()
-                cur.execute("DELETE FROM applications WHERE id = ?", (selected,))
-                conn.commit()
-                st.info("🗑️ Application Deleted")
-                safe_rerun()
 
-        csv = safe_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="⬇️ Download CSV",
-            data=csv,
-            file_name=f"applications_{status_filter}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv"
+        st.write(
+            "🤝 Guarantor:",
+            app_row["guarantor_name"]
         )
 
-# -------------------------------
-with st.form("loan_form"):
 
-    full_name = st.text_input("Full Name")
+        st.write(
+            "📞 Guarantor Phone:",
+            app_row["guarantor_phone"]
+        )
 
-    national_id = st.text_input("National ID")
 
-    phone = st.text_input("Phone Number")
+        st.write(
+            "📌 Status:",
+            app_row["status"]
+        )
 
-    staff_status = st.selectbox(
-        "Staff Status",
-        [
-            "Permanent",
-            "Contract",
-            "Temporary",
-            "Other"
-        ]
-    )
 
-    monthly_salary = st.number_input(
-        "Monthly Salary",
-        min_value=0.0,
-        step=100.0
-    )
+        st.write(
+            "💬 Admin Comment:",
+            app_row["admin_comment"]
+            if app_row["admin_comment"]
+            else "-"
+        )
 
-    submitted = st.form_submit_button(
-        "Submit Application"
-    )
+
+
+        # -----------------------------
+        # Documents
+        # -----------------------------
+
+        st.divider()
+
+        st.subheader(
+            "📂 Uploaded Documents"
+        )
+
+
+        if app_row["support_letter"]:
+
+
+            st.download_button(
+
+                label="📄 Download Support Letter",
+
+                data=app_row["support_letter"],
+
+                file_name=f"support_letter_{selected}.pdf"
+
+            )
+
+
+
+        if app_row["photo"]:
+
+
+            st.image(
+
+                app_row["photo"],
+
+                caption="Applicant Photo",
+
+                width=250
+
+            )
+
+
+
+        # -----------------------------
+        # Approve Reject Delete
+        # -----------------------------
+
+
+        st.divider()
+
+
+        colA,colB,colC = st.columns(3)
+
+
+
+        with colA:
+
+
+            approve_comment = st.text_area(
+
+                "Approve Comment"
+
+            )
+
+
+            if st.button("✅ Approve"):
+
+
+                update_status(
+
+                    conn,
+
+                    selected,
+
+                    "Approved",
+
+                    approve_comment
+
+                )
+
+
+                st.success(
+                    "Loan Approved"
+                )
+
+
+                st.rerun()
+
+
+
+        with colB:
+
+
+            reject_comment = st.text_area(
+
+                "Reject Comment"
+
+            )
+
+
+            if st.button("❌ Reject"):
+
+
+                update_status(
+
+                    conn,
+
+                    selected,
+
+                    "Rejected",
+
+                    reject_comment
+
+                )
+
+
+                st.warning(
+                    "Loan Rejected"
+                )
+
+
+                st.rerun()
+
+
+
+        with colC:
+
+
+            if st.button("🗑 Delete"):
+
+
+                cur = conn.cursor()
+
+
+                cur.execute(
+
+                    "DELETE FROM applications WHERE id=?",
+
+                    (selected,)
+
+                )
+
+
+                conn.commit()
+
+
+                st.success(
+                    "Application Deleted"
+                )
+
+
+                st.rerun()
+
+
+
+        # -----------------------------
+        # Export
+        # -----------------------------
+
+        csv = safe_df.to_csv(
+            index=False
+        ).encode("utf-8")
+
+
+        st.download_button(
+
+            label="⬇️ Download CSV",
+
+            data=csv,
+
+            file_name=f"loan_applications_{datetime.now().strftime('%Y%m%d')}.csv",
+
+            mime="text/csv"
+
+        )
