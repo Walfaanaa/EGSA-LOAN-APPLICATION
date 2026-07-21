@@ -450,69 +450,67 @@ guarantor_id = st.text_input(
 guarantor_phone = st.text_input(
     "Guarantor Phone"
 )
-    # -----------------------------
-    # Documents
-    # -----------------------------
+   # -----------------------------
+# Documents
+# -----------------------------
 
-    st.subheader("Upload Documents")
-
-
-    support_letter = st.file_uploader(
-        "Support Letter",
-        type=["pdf","jpg","jpeg","png"]
-    )
+st.subheader("Upload Documents")
 
 
-    photo = st.file_uploader(
-        "Passport Photo",
-        type=["jpg","jpeg","png"]
-    )
+support_letter = st.file_uploader(
+    "Support Letter",
+    type=["pdf","jpg","jpeg","png"]
+)
 
 
-    st.divider()
+photo = st.file_uploader(
+    "Passport Photo",
+    type=["jpg","jpeg","png"]
+)
 
 
-    agree = st.checkbox(
-        "I agree with the Loan Guarantee Agreement."
-    )
+st.divider()
 
 
-    submit = st.button(
-        "Submit Application"
-    )
+agree = st.checkbox(
+    "I agree with the Loan Guarantee Agreement."
+)
 
 
-    if submit:
+submit = st.button(
+    "Submit Application"
+)
 
 
-        if not agree:
-
-            st.error(
-                "Please accept the agreement."
-            )
+if submit:
 
 
-        elif support_letter is None:
+    if not agree:
 
-            st.error(
-                "Upload support letter."
-            )
-
-
-        elif photo is None:
-
-            st.error(
-                "Upload passport photo."
-            )
+        st.error(
+            "Please accept the agreement."
+        )
 
 
-        elif monthly_payment > max_payment:
+    elif support_letter is None:
 
-            st.error(
-                "Loan is not eligible."
-            )
+        st.error(
+            "Upload support letter."
+        )
 
 
+    elif photo is None:
+
+        st.error(
+            "Upload passport photo."
+        )
+
+
+    elif monthly_payment > max_payment:
+
+        st.error(
+            "Loan is not eligible."
+        )
         else:
 
 
