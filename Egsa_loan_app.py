@@ -507,3 +507,91 @@ if page == "Apply for Loan":
     )
 
     st.divider()
+
+    # -----------------------------
+    # Upload Documents
+    # -----------------------------
+
+    st.subheader("Upload Documents")
+
+    support_letter = st.file_uploader(
+        "Support Letter",
+        type=["pdf", "jpg", "jpeg", "png"]
+    )
+
+    photo = st.file_uploader(
+        "Passport Photo",
+        type=["jpg", "jpeg", "png"]
+    )
+
+    st.divider()
+
+    # -----------------------------
+    # Agreement
+    # -----------------------------
+
+    agree = st.checkbox(
+        "I agree with the Loan Guarantee Agreement."
+    )
+
+    submit = st.button(
+        "Submit Application"
+    )
+
+    if submit:
+
+        if not agree:
+
+            st.error(
+                "Please accept the agreement."
+            )
+
+        elif support_letter is None:
+
+            st.error(
+                "Please upload the Support Letter."
+            )
+
+        elif photo is None:
+
+            st.error(
+                "Please upload the Passport Photo."
+            )
+
+        elif monthly_payment > max_payment:
+
+            st.error(
+                "Loan is not eligible."
+            )
+
+        else:
+
+            data = {
+
+                "full_name": full_name,
+                "national_id": national_id,
+                "phone": phone,
+                "staff_status": staff_status,
+                "monthly_salary": monthly_salary,
+                "loan_amount": loan_amount,
+                "duration": duration,
+                "interest_rate": interest_rate,
+                "interest_amount": interest_amount,
+                "monthly_payment": monthly_payment,
+                "total_payment": total_payment,
+                "repayment_date": repayment_date.strftime("%Y-%m-%d"),
+                "loan_end_date": loan_end_date.strftime("%Y-%m-%d"),
+                "guarantor_name": guarantor_name,
+                "guarantor_id": guarantor_id,
+                "guarantor_phone": guarantor_phone,
+                "support_letter": support_letter.read(),
+                "photo": photo.read(),
+                "submitted_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            }
+
+            save_application(data)
+
+            st.success(
+                "🎉 Loan application submitted successfully."
+            )
