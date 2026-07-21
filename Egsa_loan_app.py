@@ -1,610 +1,350 @@
 import streamlit as st
-import sqlite3
-import pandas as pd
-
-from datetime import datetime, date, timedelta
+from datetime import date
 from dateutil.relativedelta import relativedelta
+import os
+import uuid
 
-# =====================================================
-# CONFIGURATION
-# =====================================================
 
 st.set_page_config(
-    page_title="EGSA Loan Management System",
-    page_icon="💰",
-    layout="wide"
+    page_title="EGSA Loan System",
+    layout="centered"
 )
 
-DB_NAME = "loan_applications.db"
 
-ADMIN_PASSWORD = "admin123"
+st.title("💰 EGSA Loan Application")
 
-# =====================================================
-# DATABASE CONNECTION
-# =====================================================
-
-def get_connection():
-
-    conn = sqlite3.connect(
-        DB_NAME,
-        check_same_thread=False
-    )
-
-    conn.row_factory = sqlite3.Row
-
-    return conn
+st.write("Complete all information below.")
 
 
 # =====================================================
-# CREATE TABLE
+# PERSONAL INFORMATION
 # =====================================================
 
-def init_db():
+st.subheader("👤 Personal Information")
 
-    conn = get_connection()
 
-    cur = conn.cursor()
+full_name = st.text_input(
+    "Full Name"
+)
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS applications(
+national_id = st.text_input(
+    "National ID"
+)
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+phone = st.text_input(
+    "Phone Number"
+)
 
-        full_name TEXT,
 
-        national_id TEXT,
-
-        phone TEXT,
-
-        staff_status TEXT,
-
-        monthly_salary REAL,
-
-        loan_amount REAL,
-
-        duration INTEGER,
-
-        interest_rate REAL,
-
-        interest_amount REAL,
-
-        monthly_payment REAL,
-
-        total_payment REAL,
-
-        repayment_date TEXT,
-
-        loan_end_date TEXT,
-
-        guarantor_name TEXT,
-
-        guarantor_id TEXT,
-
-        guarantor_phone TEXT,
-
-        support_letter BLOB,
-
-        photo BLOB,
-
-        submitted_date TEXT,
-
-        status TEXT DEFAULT 'Pending',
-
-        admin_comment TEXT,
-
-        notified INTEGER DEFAULT 0
-
-    )
-    """)
-
-    conn.commit()
-
-    return conn
-
-
-# =====================================================
-# INITIALIZE DATABASE
-# =====================================================
-
-conn = init_db()
-
-# =====================================================
-# LOAN FUNCTIONS
-# =====================================================
-
-def determine_interest_rate(months):
-
-    if months <= 3:
-        return 20
-
-    elif months <= 6:
-        return 25
-
-    elif months <= 9:
-        return 30
-
-    elif months <= 12:
-        return 35
-
-    elif months <= 36:
-        return 40
-
-    else:
-        return 45
-
-
-def calculate_loan(amount, months):
-
-    rate = determine_interest_rate(months)
-
-    if amount <= 0:
-        return rate, 0, 0, 0
-
-    monthly_rate = rate / 100 / 12
-
-    monthly_payment = (
-        amount *
-        monthly_rate *
-        (1 + monthly_rate) ** months
-    ) / (
-        (1 + monthly_rate) ** months - 1
-    )
-
-    total_payment = monthly_payment * months
-
-    interest_amount = total_payment - amount
-
-    return (
-        rate,
-        interest_amount,
-        monthly_payment,
-        total_payment
-    )
-
-
-# =====================================================
-# SAVE APPLICATION
-# =====================================================
-
-def save_application(data):
-
-    conn = get_connection()
-
-    cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO applications(
-
-            full_name,
-            national_id,
-            phone,
-            staff_status,
-            monthly_salary,
-            loan_amount,
-            duration,
-            interest_rate,
-            interest_amount,
-            monthly_payment,
-            total_payment,
-            repayment_date,
-            loan_end_date,
-            guarantor_name,
-            guarantor_id,
-            guarantor_phone,
-            support_letter,
-            photo,
-            submitted_date,
-            status,
-            admin_comment,
-            notified
-
-        )
-
-        VALUES(
-
-            ?,?,?,?,?,?,?,?,?,?,
-            ?,?,?,?,?,?,?,?,?,?,
-            ?,?
-
-        )
-    """, (
-
-        data["full_name"],
-        data["national_id"],
-        data["phone"],
-        data["staff_status"],
-        data["monthly_salary"],
-        data["loan_amount"],
-        data["duration"],
-        data["interest_rate"],
-        data["interest_amount"],
-        data["monthly_payment"],
-        data["total_payment"],
-        data["repayment_date"],
-        data["loan_end_date"],
-        data["guarantor_name"],
-        data["guarantor_id"],
-        data["guarantor_phone"],
-        data["support_letter"],
-        data["photo"],
-        data["submitted_date"],
-        "Pending",
-        "",
-        0
-
-    ))
-
-    conn.commit()
-    conn.close()
-
-
-# =====================================================
-# GET APPLICATIONS
-# =====================================================
-
-def get_applications(status="All"):
-
-    conn = get_connection()
-
-    query = """
-        SELECT *
-        FROM applications
-    """
-
-    params = ()
-
-    if status != "All":
-
-        query += " WHERE status=?"
-
-        params = (status,)
-
-    query += " ORDER BY submitted_date DESC"
-
-    df = pd.read_sql_query(
-        query,
-        conn,
-        params=params
-    )
-
-    conn.close()
-
-    return df
-
-
-# =====================================================
-# UPDATE STATUS
-# =====================================================
-
-def update_status(application_id, status, comment):
-
-    conn = get_connection()
-
-    cur = conn.cursor()
-
-    cur.execute("""
-
-        UPDATE applications
-
-        SET
-
-            status=?,
-            admin_comment=?
-
-        WHERE id=?
-
-    """,
-
-    (
-
-        status,
-        comment,
-        application_id
-
-    ))
-
-    conn.commit()
-
-    conn.close()
-
-
-# =====================================================
-# DELETE APPLICATION
-# =====================================================
-
-def delete_application(application_id):
-
-    conn = get_connection()
-
-    cur = conn.cursor()
-
-    cur.execute(
-
-        "DELETE FROM applications WHERE id=?",
-
-        (application_id,)
-
-    )
-
-    conn.commit()
-
-    conn.close()
-
-
-# =====================================================
-# SIDEBAR MENU
-# =====================================================
-
-st.sidebar.title("💰 EGSA Loan System")
-
-page = st.sidebar.radio(
-
-    "Select Menu",
-
+staff_status = st.selectbox(
+    "Staff Status",
     [
-
-        "Apply for Loan",
-
-        "Admin Dashboard",
-
-        "Loan Calculator"
-
+        "Permanent",
+        "Contract"
     ]
-
 )
 
+
+monthly_salary = st.number_input(
+    "Monthly Salary",
+    min_value=0.0,
+    step=1000.0
+)
+
+
+
 # =====================================================
-# APPLY FOR LOAN
+# LOAN INFORMATION
 # =====================================================
 
-if page == "Apply for Loan":
+st.subheader("💰 Loan Information")
 
-    st.title("💰 EGSA Loan Application")
 
-    st.write("Complete all information below.")
+loan_amount = st.number_input(
+    "Loan Amount",
+    min_value=0.0,
+    step=500.0
+)
 
-    st.divider()
 
-    # -----------------------------
-    # Personal Information
-    # -----------------------------
+loan_duration = st.number_input(
+    "Loan Duration (Months)",
+    min_value=1,
+    step=1
+)
 
-    st.subheader("Personal Information")
 
-    full_name = st.text_input("Full Name")
+interest_rate = 25
 
-    national_id = st.text_input("National ID")
 
-    phone = st.text_input("Phone Number")
+st.info(
+    f"Interest Rate : {interest_rate}%"
+)
 
-    staff_status = st.selectbox(
-        "Staff Status",
-        [
-            "Permanent",
-            "Contract",
-            "Temporary",
-            "Other"
-        ]
-    )
 
-    monthly_salary = st.number_input(
-        "Monthly Salary",
-        min_value=0.0,
-        step=100.0
-    )
 
-    st.divider()
+# =====================================================
+# LOAN CALCULATION
+# =====================================================
 
-        # -----------------------------
-    # Loan Information
-    # -----------------------------
 
-    st.subheader("Loan Information")
+interest_amount = (
+    loan_amount * interest_rate / 100 / 12 * loan_duration
+)
 
-    loan_amount = st.number_input(
-        "Loan Amount",
-        min_value=0.0,
-        step=100.0
-    )
 
-    duration = st.number_input(
-        "Loan Duration (Months)",
-        min_value=1,
-        max_value=60,
-        value=12
-    )
+total_repayment = (
+    loan_amount + interest_amount
+)
 
-    interest_rate, interest_amount, monthly_payment, total_payment = calculate_loan(
-        loan_amount,
-        duration
-    )
+
+monthly_payment = (
+    total_repayment / loan_duration
+    if loan_duration > 0
+    else 0
+)
+
+
+
+st.write(
+    f"""
+    ### Loan Summary
+
+    **Loan Amount:** {loan_amount:,.2f} ETB
+
+    **Interest Amount:** {interest_amount:,.2f} ETB
+
+    **Monthly Payment:** {monthly_payment:,.2f} ETB
+
+    **Total Repayment:** {total_repayment:,.2f} ETB
+    """
+)
+
+
+
+# Eligibility
+
+maximum_payment = monthly_salary * 0.4
+
+
+if monthly_payment <= maximum_payment:
 
     st.success(
-        f"Interest Rate : {interest_rate}%"
+        f"✅ Eligible for Loan\n\nMaximum Monthly Payment: {maximum_payment:,.2f} ETB"
     )
 
-    col1, col2 = st.columns(2)
+else:
 
-    with col1:
-
-        st.metric(
-            "Interest Amount",
-            f"{interest_amount:,.2f} ETB"
-        )
-
-        st.metric(
-            "Monthly Payment",
-            f"{monthly_payment:,.2f} ETB"
-        )
-
-    with col2:
-
-        st.metric(
-            "Loan Amount",
-            f"{loan_amount:,.2f} ETB"
-        )
-
-        st.metric(
-            "Total Repayment",
-            f"{total_payment:,.2f} ETB"
-        )
-
-    st.divider()
-
-    # -----------------------------
-    # Loan Eligibility
-    # -----------------------------
-
-    max_payment = monthly_salary * 0.40
-
-    if monthly_salary > 0:
-
-        if monthly_payment <= max_payment:
-
-            st.success(
-                f"✅ Eligible for Loan\n\n"
-                f"Maximum Monthly Payment: {max_payment:,.2f} ETB"
-            )
-
-        else:
-
-            st.error(
-                f"❌ Loan is not eligible.\n\n"
-                f"Monthly Payment: {monthly_payment:,.2f} ETB\n"
-                f"Maximum Allowed: {max_payment:,.2f} ETB"
-            )
-
-    repayment_date = st.date_input(
-        "Repayment Start Date",
-        value=date.today() + timedelta(days=30)
+    st.error(
+        f"❌ Not Eligible\n\nMaximum Monthly Payment: {maximum_payment:,.2f} ETB"
     )
 
-    loan_end_date = repayment_date + relativedelta(months=duration)
-
-    st.info(
-        f"📅 Loan End Date: {loan_end_date.strftime('%Y-%m-%d')}"
-    )
-
-    st.divider()
 
 
-    # -----------------------------
-    # Guarantor Information
-    # -----------------------------
+# =====================================================
+# REPAYMENT DATE
+# =====================================================
 
-    st.subheader("Guarantor")
+st.subheader("📅 Repayment Information")
 
-    guarantor_name = st.text_input(
-        "Guarantor Name"
-    )
 
-    guarantor_id = st.text_input(
-        "Guarantor National ID"
-    )
+repayment_start = st.date_input(
+    "Repayment Start Date"
+)
 
-    guarantor_phone = st.text_input(
-        "Guarantor Phone"
-    )
 
-    st.divider()
+loan_end_date = (
+    repayment_start 
+    + relativedelta(months=loan_duration)
+)
 
-    # Upload Documents
 
-st.subheader("Upload Documents")
+st.info(
+    f"Loan End Date: {loan_end_date}"
+)
+
+
+
+# =====================================================
+# GUARANTOR INFORMATION
+# =====================================================
+
+st.subheader("👥 Guarantor")
+
+
+guarantor_name = st.text_input(
+    "Guarantor Name"
+)
+
+
+guarantor_id = st.text_input(
+    "Guarantor National ID"
+)
+
+
+guarantor_phone = st.text_input(
+    "Guarantor Phone"
+)
+
+
+
+# =====================================================
+# UPLOAD DOCUMENTS
+# =====================================================
+
+st.subheader("📂 Upload Documents")
+
 
 support_letter = st.file_uploader(
     "Support Letter",
-    type=["pdf", "jpg", "jpeg", "png"]
+    type=[
+        "pdf",
+        "jpg",
+        "jpeg",
+        "png"
+    ],
+    key="support_letter"
 )
+
 
 photo = st.file_uploader(
     "Passport Photo",
-    type=["jpg", "jpeg", "png"]
+    type=[
+        "jpg",
+        "jpeg",
+        "png"
+    ],
+    key="passport_photo"
 )
+
+
+
+if support_letter:
+
+    st.success(
+        f"Support Letter: {support_letter.name}"
+    )
+
+
+if photo:
+
+    st.success(
+        f"Passport Photo: {photo.name}"
+    )
+
+
 
 st.divider()
 
 
-# Submit Button
 
-if st.button("Submit Loan Application"):
+# =====================================================
+# SUBMIT APPLICATION
+# =====================================================
+
+
+if st.button("📤 Submit Loan Application"):
+
+
+    if not full_name:
+        st.error("Please enter Full Name")
+        st.stop()
+
+
+    if not national_id:
+        st.error("Please enter National ID")
+        st.stop()
+
+
+    if not phone:
+        st.error("Please enter Phone Number")
+        st.stop()
+
+
+    if loan_amount <= 0:
+        st.error("Please enter Loan Amount")
+        st.stop()
+
+
+    if not guarantor_name:
+        st.error("Please enter Guarantor Name")
+        st.stop()
+
 
     if support_letter is None:
-        st.error("Please upload the Support Letter.")
+
+        st.error(
+            "Please upload the Support Letter."
+        )
+
         st.stop()
+
+
 
     if photo is None:
-        st.error("Please upload Passport Photo.")
+
+        st.error(
+            "Please upload the Passport Photo."
+        )
+
         st.stop()
 
-    st.success("Loan Application Submitted Successfully")
 
-    # -----------------------------
-    # Agreement
-    # -----------------------------
 
-    agree = st.checkbox(
-        "I agree with the Loan Guarantee Agreement."
+    # Save Documents
+
+    upload_folder = "uploads"
+
+    os.makedirs(
+        upload_folder,
+        exist_ok=True
     )
 
-    submit = st.button(
-        "Submit Application"
+
+    support_filename = (
+        f"{uuid.uuid4()}_{support_letter.name}"
     )
 
-    if submit:
 
-        if not agree:
+    photo_filename = (
+        f"{uuid.uuid4()}_{photo.name}"
+    )
 
-            st.error(
-                "Please accept the agreement."
-            )
 
-        elif support_letter is None:
 
-            st.error(
-                "Please upload the Support Letter."
-            )
+    with open(
+        os.path.join(
+            upload_folder,
+            support_filename
+        ),
+        "wb"
+    ) as f:
 
-        elif photo is None:
+        f.write(
+            support_letter.getbuffer()
+        )
 
-            st.error(
-                "Please upload the Passport Photo."
-            )
 
-        elif monthly_payment > max_payment:
 
-            st.error(
-                "Loan is not eligible."
-            )
+    with open(
+        os.path.join(
+            upload_folder,
+            photo_filename
+        ),
+        "wb"
+    ) as f:
 
-        else:
+        f.write(
+            photo.getbuffer()
+        )
 
-            data = {
 
-                "full_name": full_name,
-                "national_id": national_id,
-                "phone": phone,
-                "staff_status": staff_status,
-                "monthly_salary": monthly_salary,
-                "loan_amount": loan_amount,
-                "duration": duration,
-                "interest_rate": interest_rate,
-                "interest_amount": interest_amount,
-                "monthly_payment": monthly_payment,
-                "total_payment": total_payment,
-                "repayment_date": repayment_date.strftime("%Y-%m-%d"),
-                "loan_end_date": loan_end_date.strftime("%Y-%m-%d"),
-                "guarantor_name": guarantor_name,
-                "guarantor_id": guarantor_id,
-                "guarantor_phone": guarantor_phone,
-                "support_letter": support_letter.read(),
-                "photo": photo.read(),
-                "submitted_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            }
+    st.success(
+        "🎉 Loan Application Submitted Successfully!"
+    )
 
-            save_application(data)
 
-            st.success(
-                "🎉 Loan application submitted successfully."
-            )
+    st.write(
+        "Documents saved successfully."
+    )
