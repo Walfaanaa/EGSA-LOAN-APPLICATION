@@ -1,5 +1,6 @@
-DB_HOST = "gateway01.us-east-1.prod.aws.tidbcloud.com"
+DB_HOST = "gateway01.ap-northeast-1.prod.aws.tidbcloud.com"
 DB_PORT = "4000"
 DB_USER = "2KhHfxRomWoyMPp.root"
 DB_PASSWORD = "jgZ5m5RHeeFzZxNz"
-DB_SSL_CA = "ca.pem"
+DB_NAME = "lottery_db"
+DB_TABLE = "EGSA2025_short_term_loan"
