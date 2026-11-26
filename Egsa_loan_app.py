@@ -1,6 +1,5 @@
-import uuid
 from datetime import date, timedelta
-from zoneinfo import ZoneInfo
+from pathlib import Path
 
 import mysql.connector
 import pandas as pd
@@ -28,60 +27,54 @@ DB_TABLE = st.secrets["DB_TABLE"]
 DEFAULT_FROM_ACCOUNT = "1000724673337"
 
 STATUSES = [
-    "in progress",
-    "completed",
-    "overdue",
-    "cancelled"
+    "In Progress",
+    "Completed",
+    "Overdue",
+    "Cancelled"
 ]
 
-# Loan configuration
 LOAN_LEVELS = {
-    "level_1": {
-        "amount": 5000,
-        "rate": 5,
-        "term": 15
-    },
-    "level_2": {
-        "amount": 10000,
-        "rate": 5,
-        "term": 20
-    },
-    "level_3": {
-        "amount": 15000,
-        "rate": 10,
-        "term": 30
-    },
-    "level_4": {
-        "amount": 25000,
-        "rate": 15,
-        "term": 60
-    },
-    "level_5": {
-        "amount": 50000,
-        "rate": 25,
-        "term": 90
-    },
-    "level_6": {
-        "amount": 100000,
-        "rate": 15,
-        "term": 180
-    }
+    "level_1": {"amount": 5000, "rate": 5, "term": 15},
+    "level_2": {"amount": 10000, "rate": 5, "term": 20},
+    "level_3": {"amount": 15000, "rate": 10, "term": 30},
+    "level_4": {"amount": 25000, "rate": 15, "term": 60},
+    "level_5": {"amount": 50000, "rate": 25, "term": 90},
+    "level_6": {"amount": 100000, "rate": 15, "term": 180}
 }
 
 
+# ============================================================
+# DATABASE CONNECTION
+# ============================================================
 def get_db_connection():
-    return mysql.connector.connect(
-        host=st.secrets["DB_HOST"],
-        port=int(st.secrets["DB_PORT"]),
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        database=DB_NAME,
-        connection_timeout=20,
-        autocommit=False,
-        ssl_disabled=False,
-        ssl_verify_cert=False,
-        ssl_verify_identity=False
-    )
+
+    connection_args = {
+        "host": st.secrets["DB_HOST"],
+        "port": int(st.secrets["DB_PORT"]),
+        "user": st.secrets["DB_USER"],
+        "password": st.secrets["DB_PASSWORD"],
+        "database": DB_NAME,
+        "connection_timeout": 30,
+        "autocommit": False
+    }
+
+    # Use the TiDB CA certificate when configured.
+    ca_path = st.secrets.get("DB_SSL_CA")
+
+    if ca_path:
+        if not Path(ca_path).is_file():
+            raise FileNotFoundError(
+                f"CA certificate not found: {ca_path}. "
+                "Check that ca.pem is included in your GitHub repository."
+            )
+
+        connection_args.update({
+            "ssl_ca": ca_path,
+            "ssl_verify_cert": True,
+            "ssl_verify_identity": True
+        })
+
+    return mysql.connector.connect(**connection_args)
 
 
 # ============================================================
@@ -89,6 +82,7 @@ def get_db_connection():
 # ============================================================
 @st.cache_data(ttl=300)
 def get_table_schema():
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
@@ -104,32 +98,34 @@ def get_table_schema():
         )
 
         rows = cursor.fetchall()
-        return {row["COLUMN_NAME"].lower(): row for row in rows}
+
+        schema = {
+            row["COLUMN_NAME"].lower(): row
+            for row in rows
+        }
+
+        required_columns = {
+            "loan_id", "business_date", "id", "loan_type",
+            "disbursed_amount", "interest_rate", "interest_amount",
+            "collection_amount", "from_account", "to_account",
+            "due_date", "phone_no", "status"
+        }
+
+        missing = required_columns - set(schema.keys())
+
+        if missing:
+            raise ValueError(
+                f"Missing database columns: {', '.join(sorted(missing))}"
+            )
+
+        return schema
 
     finally:
         cursor.close()
         conn.close()
 
 
-def is_numeric_column(column_name):
-    schema = get_table_schema()
-
-    if column_name.lower() not in schema:
-        raise ValueError(f"Column {column_name} was not found in the database.")
-
-    data_type = schema[column_name.lower()]["DATA_TYPE"].lower()
-
-    return data_type in [
-        "int", "integer", "bigint", "smallint",
-        "mediumint", "tinyint", "decimal", "numeric",
-        "float", "double"
-    ]
-
-
 def convert_value(column_name, value):
-    """
-    Convert values according to the actual database column type.
-    """
 
     schema = get_table_schema()
     column = schema[column_name.lower()]
@@ -144,7 +140,9 @@ def convert_value(column_name, value):
     ]:
         return int(value)
 
-    if data_type in ["decimal", "numeric", "float", "double"]:
+    if data_type in [
+        "decimal", "numeric", "float", "double"
+    ]:
         return float(value)
 
     if data_type == "date":
@@ -154,44 +152,53 @@ def convert_value(column_name, value):
 
 
 def format_date_for_column(column_name, value):
+
     schema = get_table_schema()
     data_type = schema[column_name.lower()]["DATA_TYPE"].lower()
 
-    if data_type == "date":
+    if data_type in ["date", "datetime", "timestamp"]:
         return value
 
-    if data_type in ["datetime", "timestamp"]:
-        return value
-
-    # For VARCHAR/TEXT date columns
-    return value.strftime("%-m/%-d/%Y") if hasattr(value, "strftime") else str(value)
+    # VARCHAR/TEXT date columns
+    return value.strftime("%m/%d/%Y")
 
 
 # ============================================================
-# LOAN ID GENERATION
+# GENERATE NEXT LOAN ID
+# loan_id is the PRIMARY KEY.
+# id is the member ID and MAY BE DUPLICATED.
 # ============================================================
-def generate_loan_id(cursor):
-    """
-    Generate loan_id based on its database type.
-
-    - If loan_id is AUTO_INCREMENT, let the database generate it.
-    - If loan_id is numeric, generate MAX(loan_id) + 1.
-    - If loan_id is text, generate a unique EGSA reference.
-    """
+def get_next_loan_id(cursor):
 
     schema = get_table_schema()
-    column = schema["loan_id"]
+    loan_id_column = schema["loan_id"]
 
-    if "auto_increment" in str(column["EXTRA"]).lower():
-        return None
-
-    if is_numeric_column("loan_id"):
-        cursor.execute(
-            f"SELECT COALESCE(MAX(`loan_id`), 0) + 1 FROM `{DB_TABLE}`"
+    if "auto_increment" in str(
+        loan_id_column["EXTRA"]
+    ).lower():
+        raise ValueError(
+            "loan_id is AUTO_INCREMENT. "
+            "Remove loan_id from the INSERT and let TiDB generate it."
         )
-        return cursor.fetchone()[0]
 
-    return f"EGSA-{date.today():%Y%m%d}-{uuid.uuid4().hex[:8].upper()}"
+    data_type = loan_id_column["DATA_TYPE"].lower()
+
+    if data_type not in [
+        "int", "integer", "bigint", "smallint",
+        "mediumint", "tinyint"
+    ]:
+        raise ValueError(
+            "loan_id must be a numeric column for sequential numbering."
+        )
+
+    cursor.execute(
+        f"""
+        SELECT COALESCE(MAX(`loan_id`), 0) + 1
+        FROM `{DB_TABLE}`
+        """
+    )
+
+    return int(cursor.fetchone()[0])
 
 
 # ============================================================
@@ -203,20 +210,15 @@ def register_loan(data):
     cursor = conn.cursor()
 
     try:
-        # Check duplicate manually entered ID
-        cursor.execute(
-            f"SELECT COUNT(*) FROM `{DB_TABLE}` WHERE `id` = %s",
-            (data["id"],)
-        )
+        # Generate the next sequential loan_id.
+        loan_id = get_next_loan_id(cursor)
 
-        if cursor.fetchone()[0] > 0:
-            raise ValueError(
-                f"ID {data['id']} already exists. Please enter another ID."
-            )
-
-        loan_id = generate_loan_id(cursor)
+        # IMPORTANT:
+        # No duplicate check on id.
+        # The same member can register multiple loans.
 
         columns = [
+            "loan_id",
             "business_date",
             "id",
             "loan_type",
@@ -232,7 +234,10 @@ def register_loan(data):
         ]
 
         values = [
-            format_date_for_column("business_date", data["business_date"]),
+            convert_value("loan_id", loan_id),
+            format_date_for_column(
+                "business_date", data["business_date"]
+            ),
             convert_value("id", data["id"]),
             data["loan_type"],
             data["disbursed_amount"],
@@ -246,12 +251,10 @@ def register_loan(data):
             data["status"]
         ]
 
-        # Include loan_id if it is not AUTO_INCREMENT
-        if loan_id is not None:
-            columns.insert(0, "loan_id")
-            values.insert(0, convert_value("loan_id", loan_id))
+        column_sql = ", ".join(
+            f"`{column}`" for column in columns
+        )
 
-        column_sql = ", ".join(f"`{col}`" for col in columns)
         placeholders = ", ".join(["%s"] * len(values))
 
         sql = f"""
@@ -277,6 +280,7 @@ def register_loan(data):
 # LOAD LOAN HISTORY
 # ============================================================
 def load_loan_history():
+
     conn = get_db_connection()
 
     try:
@@ -296,7 +300,7 @@ def load_loan_history():
                 `phone_no`,
                 `status`
             FROM `{DB_TABLE}`
-            ORDER BY `business_date` DESC
+            ORDER BY `loan_id` DESC
         """
 
         return pd.read_sql(query, conn)
@@ -306,9 +310,33 @@ def load_loan_history():
 
 
 # ============================================================
-# UPDATE LOAN STATUS
+# FIND LOAN USING PRIMARY KEY loan_id
 # ============================================================
-def update_loan_status(record_id, new_status):
+def find_loan(loan_id):
+
+    conn = get_db_connection()
+
+    try:
+        query = f"""
+            SELECT *
+            FROM `{DB_TABLE}`
+            WHERE `loan_id` = %s
+        """
+
+        return pd.read_sql(
+            query,
+            conn,
+            params=(loan_id,)
+        )
+
+    finally:
+        conn.close()
+
+
+# ============================================================
+# UPDATE LOAN STATUS USING loan_id
+# ============================================================
+def update_loan_status(loan_id, new_status):
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -318,9 +346,9 @@ def update_loan_status(record_id, new_status):
             f"""
             UPDATE `{DB_TABLE}`
             SET `status` = %s
-            WHERE `id` = %s
+            WHERE `loan_id` = %s
             """,
-            (new_status, record_id)
+            (new_status, loan_id)
         )
 
         affected_rows = cursor.rowcount
@@ -359,6 +387,13 @@ if page == "Register New Loan":
 
     st.header("📝 Register New Short-Term Loan")
 
+    try:
+        displayed_next_loan_id = get_next_loan_id(
+            get_db_connection().cursor()
+        )
+    except Exception:
+        displayed_next_loan_id = None
+
     with st.form("loan_registration_form"):
 
         col1, col2 = st.columns(2)
@@ -367,13 +402,25 @@ if page == "Register New Loan":
 
             st.subheader("Loan Information")
 
-            # MANUAL ID ENTRY
+            if displayed_next_loan_id is not None:
+                st.number_input(
+                    "Next Loan ID (Automatically Generated)",
+                    value=displayed_next_loan_id,
+                    disabled=True
+                )
+            else:
+                st.info(
+                    "Loan ID will be generated when the loan is saved."
+                )
+
+            # Member ID is manually entered.
+            # Duplicate member IDs are allowed.
             record_id = st.number_input(
-                "ID (Enter manually)",
+                "Member ID",
                 min_value=1,
                 step=1,
                 value=None,
-                placeholder="Example: 1013"
+                placeholder="Enter member ID"
             )
 
             business_date = st.date_input(
@@ -400,7 +447,9 @@ if page == "Register New Loan":
                 disbursed_amount + interest_amount
             )
 
-            due_date = business_date + timedelta(days=loan_term)
+            due_date = business_date + timedelta(
+                days=loan_term
+            )
 
             st.number_input(
                 "Disbursed Amount (ETB)",
@@ -465,13 +514,17 @@ if page == "Register New Loan":
     if submitted:
 
         if record_id is None:
-            st.error("Please enter the loan ID.")
+            st.error("Please enter the member ID.")
+
         elif not to_account.strip():
             st.error("Please enter the recipient account number.")
+
         elif not phone_no.strip():
             st.error("Please enter the phone number.")
+
         elif not from_account.strip():
             st.error("Please enter the source account number.")
+
         else:
 
             try:
@@ -490,17 +543,15 @@ if page == "Register New Loan":
                     "status": status
                 }
 
+                # The actual loan_id is generated inside
+                # the database registration transaction.
                 generated_loan_id = register_loan(loan_data)
 
-                if generated_loan_id is None:
-                    st.success(
-                        f"Loan registered successfully. ID: {record_id}"
-                    )
-                else:
-                    st.success(
-                        f"Loan registered successfully. "
-                        f"Loan ID: {generated_loan_id} | ID: {record_id}"
-                    )
+                st.success(
+                    f"Loan registered successfully! "
+                    f"Loan ID: {generated_loan_id} | "
+                    f"Member ID: {record_id}"
+                )
 
                 st.cache_data.clear()
 
@@ -519,13 +570,17 @@ elif page == "Loan History":
         df = load_loan_history()
 
         if df.empty:
+
             st.info("No loan records found.")
 
         else:
 
             col1, col2, col3 = st.columns(3)
 
-            col1.metric("Total Loans", len(df))
+            col1.metric(
+                "Total Loans",
+                len(df)
+            )
 
             col2.metric(
                 "Total Disbursed (ETB)",
@@ -540,10 +595,11 @@ elif page == "Loan History":
             st.divider()
 
             search = st.text_input(
-                "Search by ID, Loan ID, Account, or Phone Number"
+                "Search by Loan ID, Member ID, Account, or Phone"
             )
 
             if search:
+
                 mask = df.astype(str).apply(
                     lambda col: col.str.contains(
                         search,
@@ -572,7 +628,9 @@ elif page == "Loan History":
                 hide_index=True
             )
 
-            csv_data = df.to_csv(index=False).encode("utf-8")
+            csv_data = df.to_csv(
+                index=False
+            ).encode("utf-8")
 
             st.download_button(
                 "Download Loan History CSV",
@@ -593,46 +651,48 @@ elif page == "Update Loan Status":
     st.header("🔄 Update Loan Status")
 
     st.write(
-        "Enter the manually assigned ID to find the loan "
-        "and update its status."
+        "Enter the Loan ID (primary key) to find and update "
+        "a specific loan record."
     )
 
-    record_id = st.number_input(
-        "Enter Loan ID (ID column)",
+    loan_id_input = st.number_input(
+        "Enter Loan ID",
         min_value=1,
         step=1,
         value=None,
-        placeholder="Example: 1013"
+        placeholder="Example: 31"
     )
 
-    if st.button("Find Loan", use_container_width=True):
+    if st.button(
+        "Find Loan",
+        use_container_width=True
+    ):
 
-        if record_id is None:
-            st.warning("Please enter an ID.")
+        if loan_id_input is None:
+
+            st.warning("Please enter the Loan ID.")
 
         else:
+
             try:
-                conn = get_db_connection()
-
-                query = f"""
-                    SELECT *
-                    FROM `{DB_TABLE}`
-                    WHERE `id` = %s
-                """
-
-                found = pd.read_sql(
-                    query,
-                    conn,
-                    params=(int(record_id),)
-                )
-
-                conn.close()
+                found = find_loan(int(loan_id_input))
 
                 if found.empty:
-                    st.error("No loan found with this ID.")
+
+                    st.error(
+                        f"No loan found with Loan ID {int(loan_id_input)}."
+                    )
+
+                    st.session_state.pop(
+                        "selected_loan",
+                        None
+                    )
 
                 else:
-                    st.session_state["selected_loan"] = found.iloc[0].to_dict()
+
+                    st.session_state["selected_loan"] = (
+                        found.iloc[0].to_dict()
+                    )
 
             except Exception as e:
                 st.error(f"Search failed: {e}")
@@ -647,10 +707,11 @@ elif page == "Update Loan Status":
         details = pd.DataFrame(
             [
                 {"Field": "Loan ID", "Value": loan.get("loan_id")},
-                {"Field": "ID", "Value": loan.get("id")},
+                {"Field": "Member ID", "Value": loan.get("id")},
                 {"Field": "Loan Type", "Value": loan.get("loan_type")},
                 {"Field": "Business Date", "Value": loan.get("business_date")},
                 {"Field": "Disbursed Amount", "Value": loan.get("disbursed_amount")},
+                {"Field": "Interest Rate", "Value": loan.get("interest_rate")},
                 {"Field": "Interest Amount", "Value": loan.get("interest_amount")},
                 {"Field": "Collection Amount", "Value": loan.get("collection_amount")},
                 {"Field": "Current Status", "Value": loan.get("status")}
@@ -663,15 +724,24 @@ elif page == "Update Loan Status":
             hide_index=True
         )
 
-        current_status = str(loan.get("status", "")).lower()
+        current_status = str(
+            loan.get("status", "In Progress")
+        ).strip().lower()
 
-        if current_status not in STATUSES:
-            current_status = STATUSES[0]
+        status_lookup = {
+            status.lower(): status
+            for status in STATUSES
+        }
+
+        selected_status = status_lookup.get(
+            current_status,
+            "In Progress"
+        )
 
         new_status = st.selectbox(
             "Select New Status",
             STATUSES,
-            index=STATUSES.index(current_status)
+            index=STATUSES.index(selected_status)
         )
 
         if st.button(
@@ -682,19 +752,30 @@ elif page == "Update Loan Status":
 
             try:
                 affected = update_loan_status(
-                    loan["id"],
+                    loan["loan_id"],
                     new_status
                 )
 
                 if affected > 0:
+
                     st.success(
-                        f"Status updated successfully to {new_status}."
+                        f"Loan ID {loan['loan_id']} status "
+                        f"updated to {new_status}."
                     )
-                    st.session_state.pop("selected_loan", None)
+
+                    st.session_state.pop(
+                        "selected_loan",
+                        None
+                    )
+
                     st.cache_data.clear()
+
                 else:
-                    st.warning(
-                        "No database row was changed. "
+
+                    # A zero row count can mean the status
+                    # was already equal to the selected value.
+                    st.info(
+                        "No change was necessary. "
                         "The loan may already have this status."
                     )
 
