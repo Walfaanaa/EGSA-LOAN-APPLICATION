@@ -8,20 +8,24 @@ import streamlit as st
 
 
 # ============================================================
-# PAGE CONFIGURATION
+# 1. PAGE CONFIGURATION
 # ============================================================
 st.set_page_config(
-    page_title="EGSA | Loan Registration",
+    page_title="EGSA2025 | Short-Term Loan Management",
     page_icon="💰",
     layout="wide"
 )
 
-st.title("💰 EGSA Loan Registration System")
-st.caption("Loan member registration | TiDB Cloud Database")
+st.title("💰 EGSA2025 Short-Term Loan Management")
+st.caption("Loan Registration | Loan History | Status Management")
+
 
 # ============================================================
-# LOAN CONFIGURATION
+# 2. SYSTEM CONFIGURATION
 # ============================================================
+DEFAULT_FROM_ACCOUNT = "1000724673337"
+LOCAL_TZ = ZoneInfo("Africa/Addis_Ababa")
+
 LOAN_LEVELS = {
     "Level 1": {"amount": 5000, "rate": 5, "days": 15},
     "Level 2": {"amount": 10000, "rate": 5, "days": 20},
@@ -31,13 +35,18 @@ LOAN_LEVELS = {
     "Level 6": {"amount": 100000, "rate": 15, "days": 180},
 }
 
-DEFAULT_FROM_ACCOUNT = "1000724673337"
-LOCAL_TZ = ZoneInfo("Africa/Addis_Ababa")
+STATUS_OPTIONS = [
+    "In Progress",
+    "Completed",
+    "Overdue",
+    "Cancelled"
+]
 
 # ============================================================
-# DATABASE CONFIGURATION
+# 3. TIDB DATABASE CONNECTION
 # ============================================================
 def get_db_connection():
+
     config = st.secrets["tidb"]
 
     connection_args = {
@@ -45,7 +54,7 @@ def get_db_connection():
         "port": int(config.get("port", 4000)),
         "user": config["user"],
         "password": config["password"],
-        "database": config["database"],
+        "database": "lottery_db",
         "connection_timeout": 20,
         "autocommit": False,
         "ssl_disabled": False,
@@ -53,31 +62,20 @@ def get_db_connection():
         "ssl_verify_identity": config.get("ssl_verify_identity", False),
     }
 
-    # Optional CA certificate file, if configured
     if config.get("ssl_ca"):
         connection_args["ssl_ca"] = config["ssl_ca"]
 
     return mysql.connector.connect(**connection_args)
 
 
-# ============================================================
-# TABLE NAME VALIDATION
-# ============================================================
-def get_table_name():
-    table = st.secrets["tidb"].get("table", "loans")
-
-    if not re.fullmatch(r"[A-Za-z0-9_]+", table):
-        raise ValueError("Invalid TiDB table name in secrets.toml")
-
-    return f"`{table}`"
+TABLE_NAME = "`EGSA2025_short_term_loan`"
 
 
 # ============================================================
-# LOAN ID GENERATION
-# Format:
-# FROMACCOUNT_BUSINESSDATE_STATUS_LOANTYPE
+# 4. LOAN ID GENERATION
 # ============================================================
 def generate_loan_id(from_account, business_date, loan_type):
+
     date_part = business_date.strftime("%Y%m%d")
 
     return (
@@ -89,20 +87,20 @@ def generate_loan_id(from_account, business_date, loan_type):
 
 
 # ============================================================
-# DATABASE INSERT
+# 5. SAVE NEW LOAN
 # ============================================================
 def save_loan(loan_data):
+
     connection = None
     cursor = None
 
     try:
+
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        table = get_table_name()
-
         sql = f"""
-            INSERT INTO {table} (
+            INSERT INTO {TABLE_NAME} (
                 loan_id,
                 loan_type,
                 business_date,
@@ -134,7 +132,7 @@ def save_loan(loan_data):
             loan_data["to_account"],
             loan_data["due_date"],
             loan_data["phone_no"],
-            loan_data["status"],
+            loan_data["status"]
         )
 
         cursor.execute(sql, values)
@@ -142,22 +140,22 @@ def save_loan(loan_data):
 
         return True, "Loan successfully registered!"
 
-    except mysql.connector.IntegrityError:
+    except mysql.connector.IntegrityError as error:
+
         if connection:
             connection.rollback()
 
-        return False, (
-            "Duplicate loan ID. A loan with this account, "
-            "date and level may already exist."
-        )
+        return False, f"Duplicate or integrity error: {error}"
 
     except Exception as error:
+
         if connection:
             connection.rollback()
 
         return False, str(error)
 
     finally:
+
         if cursor:
             cursor.close()
 
@@ -166,17 +164,17 @@ def save_loan(loan_data):
 
 
 # ============================================================
-# LOAD REGISTERED LOANS
+# 6. LOAD LOAN HISTORY
 # ============================================================
 def load_loans():
+
     connection = None
     cursor = None
 
     try:
+
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
-
-        table = get_table_name()
 
         sql = f"""
             SELECT
@@ -192,20 +190,23 @@ def load_loans():
                 due_date,
                 phone_no,
                 status
-            FROM {table}
+            FROM {TABLE_NAME}
             ORDER BY business_date DESC
             LIMIT 1000
         """
 
         cursor.execute(sql)
+
         records = cursor.fetchall()
 
         return pd.DataFrame(records), None
 
     except Exception as error:
+
         return pd.DataFrame(), str(error)
 
     finally:
+
         if cursor:
             cursor.close()
 
@@ -214,26 +215,82 @@ def load_loans():
 
 
 # ============================================================
-# SIDEBAR
+# 7. UPDATE LOAN STATUS
 # ============================================================
-st.sidebar.title("EGSA Loan System")
+def update_loan_status(loan_id, new_status):
+
+    connection = None
+    cursor = None
+
+    try:
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        sql = f"""
+            UPDATE {TABLE_NAME}
+            SET status = %s
+            WHERE loan_id = %s
+        """
+
+        cursor.execute(sql, (new_status, loan_id))
+
+        if cursor.rowcount == 0:
+
+            connection.rollback()
+
+            return False, "Loan ID not found."
+
+        connection.commit()
+
+        return True, "Loan status successfully updated!"
+
+    except Exception as error:
+
+        if connection:
+            connection.rollback()
+
+        return False, str(error)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if connection and connection.is_connected():
+            connection.close()
+
+
+# ============================================================
+# 8. SIDEBAR NAVIGATION
+# ============================================================
+st.sidebar.title("EGSA2025 Loan System")
+
 page = st.sidebar.radio(
     "Navigation",
-    ["Register New Loan", "Loan History"]
+    [
+        "Register New Loan",
+        "Loan History",
+        "Update Loan Status"
+    ]
 )
 
 st.sidebar.divider()
+
 st.sidebar.info(
     f"Default From Account\n\n{DEFAULT_FROM_ACCOUNT}"
 )
 
+st.sidebar.caption("Database: lottery_db")
+st.sidebar.caption("Table: EGSA2025_short_term_loan")
+
 
 # ============================================================
-# PAGE 1: REGISTER NEW LOAN
+# 9. REGISTER NEW LOAN
 # ============================================================
 if page == "Register New Loan":
 
-    st.subheader("New Loan Member Registration")
+    st.subheader("📝 New Loan Member Registration")
 
     current_date = datetime.now(LOCAL_TZ).date()
 
@@ -242,6 +299,7 @@ if page == "Register New Loan":
         col1, col2 = st.columns(2)
 
         with col1:
+
             from_account = st.text_input(
                 "From Account",
                 value=DEFAULT_FROM_ACCOUNT
@@ -249,7 +307,7 @@ if page == "Register New Loan":
 
             to_account = st.text_input(
                 "To Account",
-                placeholder="Enter receiving account number"
+                placeholder="Enter receiving account"
             )
 
             phone_no = st.text_input(
@@ -258,9 +316,10 @@ if page == "Register New Loan":
             )
 
         with col2:
+
             loan_type = st.selectbox(
                 "Loan Level",
-                options=list(LOAN_LEVELS.keys())
+                list(LOAN_LEVELS.keys())
             )
 
             registration_date = st.date_input(
@@ -268,7 +327,6 @@ if page == "Register New Loan":
                 value=current_date
             )
 
-        # Calculate loan details
         selected = LOAN_LEVELS[loan_type]
 
         principal = selected["amount"]
@@ -283,7 +341,9 @@ if page == "Register New Loan":
             principal + interest_amount, 2
         )
 
-        due_date = registration_date + timedelta(days=duration)
+        due_date = registration_date + timedelta(
+            days=duration
+        )
 
         loan_id = generate_loan_id(
             from_account.strip(),
@@ -292,55 +352,83 @@ if page == "Register New Loan":
         )
 
         st.divider()
+
         st.subheader("Automatic Loan Calculation")
 
         c1, c2, c3 = st.columns(3)
 
-        c1.metric("Loan Amount", f"ETB {principal:,.2f}")
-        c2.metric("Interest", f"{interest_rate}%")
-        c3.metric("Duration", f"{duration} days")
+        c1.metric(
+            "Loan Principal",
+            f"ETB {principal:,.2f}"
+        )
+
+        c2.metric(
+            "Interest Rate",
+            f"{interest_rate}%"
+        )
+
+        c3.metric(
+            "Duration",
+            f"{duration} Days"
+        )
 
         c4, c5, c6 = st.columns(3)
 
-        c4.metric("Interest Amount", f"ETB {interest_amount:,.2f}")
-        c5.metric("Total Collection", f"ETB {collection_amount:,.2f}")
-        c6.metric("Due Date", due_date.strftime("%d-%m-%Y"))
+        c4.metric(
+            "Interest Amount",
+            f"ETB {interest_amount:,.2f}"
+        )
 
-        st.caption(f"Generated Loan ID: {loan_id}")
+        c5.metric(
+            "Total Collection",
+            f"ETB {collection_amount:,.2f}"
+        )
+
+        c6.metric(
+            "Due Date",
+            due_date.strftime("%d-%m-%Y")
+        )
+
+        st.caption(f"Loan ID: {loan_id}")
 
         submitted = st.form_submit_button(
-            "💾 Register Loan",
+            "💾 Register New Loan",
             type="primary",
             use_container_width=True
         )
 
     if submitted:
 
-        # Validate account numbers and phone
         errors = []
 
         if not from_account.strip().isdigit():
-            errors.append("From account must contain digits only.")
+            errors.append("Invalid From Account.")
 
         if not to_account.strip().isdigit():
-            errors.append("To account must contain digits only.")
+            errors.append("Invalid To Account.")
 
         if not phone_no.strip().isdigit():
-            errors.append("Phone number must contain digits only.")
+            errors.append("Invalid Phone Number.")
 
         if from_account.strip() == to_account.strip():
-            errors.append("From account and To account cannot be identical.")
+            errors.append(
+                "From Account and To Account cannot be identical."
+            )
 
         if registration_date > current_date:
-            errors.append("Registration date cannot be in the future.")
+            errors.append(
+                "Registration date cannot be in the future."
+            )
 
         if errors:
+
             for error in errors:
                 st.error(error)
 
         else:
 
             loan_data = {
+
                 "loan_id": loan_id,
                 "loan_type": loan_type,
                 "business_date": registration_date,
@@ -352,7 +440,8 @@ if page == "Register New Loan":
                 "to_account": int(to_account),
                 "due_date": due_date.strftime("%Y-%m-%d"),
                 "phone_no": int(phone_no),
-                "status": "In Progress",
+                "status": "In Progress"
+
             }
 
             with st.spinner("Saving loan to TiDB..."):
@@ -360,6 +449,7 @@ if page == "Register New Loan":
                 success, message = save_loan(loan_data)
 
             if success:
+
                 st.success(message)
 
                 st.subheader("Registered Loan Details")
@@ -373,54 +463,73 @@ if page == "Register New Loan":
                 st.balloons()
 
             else:
-                st.error(f"Registration failed: {message}")
+
+                st.error(message)
 
 
 # ============================================================
-# PAGE 2: LOAN HISTORY
+# 10. LOAN HISTORY
 # ============================================================
 elif page == "Loan History":
 
-    st.subheader("Registered Loan Members")
+    st.subheader("📊 Registered Loan History")
 
-    if st.button("🔄 Refresh Loan Records"):
-        st.rerun()
+    col1, col2 = st.columns([1, 4])
 
-    with st.spinner("Loading records from TiDB..."):
+    with col1:
 
-        df, error = load_loans()
+        if st.button("🔄 Refresh Records"):
+            st.rerun()
+
+    df, error = load_loans()
 
     if error:
-        st.error(f"Unable to load loan records: {error}")
+
+        st.error(f"Database Error: {error}")
 
     elif df.empty:
-        st.info("No loan records found.")
+
+        st.info("No registered loans found.")
 
     else:
 
         total_loans = len(df)
 
         total_disbursed = pd.to_numeric(
-            df["disbursed_amount"], errors="coerce"
+            df["disbursed_amount"],
+            errors="coerce"
         ).sum()
 
         total_collection = pd.to_numeric(
-            df["collection_amount"], errors="coerce"
+            df["collection_amount"],
+            errors="coerce"
         ).sum()
 
         c1, c2, c3 = st.columns(3)
 
-        c1.metric("Total Loans", f"{total_loans:,}")
-        c2.metric("Total Disbursed", f"ETB {total_disbursed:,.2f}")
-        c3.metric("Expected Collection", f"ETB {total_collection:,.2f}")
+        c1.metric(
+            "Total Loans",
+            f"{total_loans:,}"
+        )
+
+        c2.metric(
+            "Total Disbursed",
+            f"ETB {total_disbursed:,.2f}"
+        )
+
+        c3.metric(
+            "Expected Collection",
+            f"ETB {total_collection:,.2f}"
+        )
 
         st.divider()
 
         search = st.text_input(
-            "Search by Account Number or Loan ID"
+            "Search Loan ID or Account Number"
         )
 
         if search:
+
             mask = (
                 df["loan_id"].astype(str).str.contains(
                     search, case=False, na=False
@@ -443,11 +552,152 @@ elif page == "Loan History":
             hide_index=True
         )
 
-        csv_data = df.to_csv(index=False).encode("utf-8")
+        csv_data = df.to_csv(
+            index=False
+        ).encode("utf-8")
 
         st.download_button(
-            "📥 Download Loan Records (CSV)",
+            "📥 Download Loan History CSV",
             data=csv_data,
-            file_name="EGSA_Loan_Records.csv",
+            file_name="EGSA2025_Loan_History.csv",
             mime="text/csv"
         )
+
+
+# ============================================================
+# 11. UPDATE LOAN STATUS
+# ============================================================
+elif page == "Update Loan Status":
+
+    st.subheader("🔄 Update Existing Loan Status")
+
+    df, error = load_loans()
+
+    if error:
+
+        st.error(f"Database Error: {error}")
+
+    elif df.empty:
+
+        st.info("No registered loans available.")
+
+    else:
+
+        search = st.text_input(
+            "Search by Loan ID or From Account",
+            key="status_search"
+        )
+
+        filtered = df.copy()
+
+        if search:
+
+            mask = (
+                filtered["loan_id"].astype(str).str.contains(
+                    search, case=False, na=False
+                )
+                |
+                filtered["from_account"].astype(str).str.contains(
+                    search, na=False
+                )
+            )
+
+            filtered = filtered[mask]
+
+        if filtered.empty:
+
+            st.warning("No matching loans found.")
+
+        else:
+
+            selected_loan_id = st.selectbox(
+                "Select Loan ID",
+                filtered["loan_id"].astype(str).tolist()
+            )
+
+            loan = filtered[
+                filtered["loan_id"].astype(str)
+                == selected_loan_id
+            ].iloc[0]
+
+            st.divider()
+
+            c1, c2, c3 = st.columns(3)
+
+            c1.metric(
+                "Loan Principal",
+                f"ETB {float(loan['disbursed_amount']):,.2f}"
+            )
+
+            c2.metric(
+                "Expected Collection",
+                f"ETB {float(loan['collection_amount']):,.2f}"
+            )
+
+            c3.metric(
+                "Current Status",
+                str(loan["status"])
+            )
+
+            c4, c5 = st.columns(2)
+
+            c4.write(
+                f"**From Account:** {loan['from_account']}"
+            )
+
+            c5.write(
+                f"**To Account:** {loan['to_account']}"
+            )
+
+            c4.write(
+                f"**Loan Type:** {loan['loan_type']}"
+            )
+
+            c5.write(
+                f"**Due Date:** {loan['due_date']}"
+            )
+
+            st.divider()
+
+            current_status = str(loan["status"])
+
+            options = STATUS_OPTIONS.copy()
+
+            if current_status not in options:
+                options.insert(0, current_status)
+
+            new_status = st.selectbox(
+                "Select New Status",
+                options,
+                index=options.index(current_status)
+            )
+
+            if st.button(
+                "💾 Update Loan Status",
+                type="primary",
+                use_container_width=True
+            ):
+
+                if new_status == current_status:
+
+                    st.warning(
+                        "Please select a different status."
+                    )
+
+                else:
+
+                    with st.spinner("Updating TiDB..."):
+
+                        success, message = update_loan_status(
+                            selected_loan_id,
+                            new_status
+                        )
+
+                    if success:
+
+                        st.success(message)
+                        st.rerun()
+
+                    else:
+
+                        st.error(message)
